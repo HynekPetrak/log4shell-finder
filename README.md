@@ -13,6 +13,10 @@ exploded jar files just sitting uncompressed on the file-system (aka *.class).
 
 ## Changelog
 
+### Version 1.3-20211219
+
+- handle [elastic's](https://github.com/elastic/apm-agent-java/blob/2775b70a6d4b5cf2eecd2693545f2acc46e1b8a3/apm-agent-bootstrap/pom.xml#L128) SHADED_CLASS_EXTENSION ".esclazz"
+
 ### Version 1.2-20211219
 
 - get exact log4j version from pom.properties
