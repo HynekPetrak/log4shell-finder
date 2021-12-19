@@ -31,7 +31,9 @@ optional arguments:
   -d, --debug  Increase verbosity, mainly for debugging purposes
 ```
 
-Does not need any extra python libraries.
+Does not require any extra python libraries.
+
+## Compile binaries
 
 The binaries were produces with:
 
