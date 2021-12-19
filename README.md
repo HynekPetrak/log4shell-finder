@@ -15,6 +15,22 @@ exploded jar files just sitting uncompressed on the file-system (aka *.class).
 
 Either run from a python interpreter or use the Windows/Linux binaries from the [dist](dist) folder.
 
+```bash
+# ./test_log4shell.py --help
+usage:  Type "test_log4shell.py --help" for more information
+        On Windows "test_log4shell.py c:\ d:\"
+        On Linux "test_log4shell.py /"
+
+Searches file system for vulnerable log4j version.
+
+positional arguments:
+  folders      List of folders or files to scan
+
+optional arguments:
+  -h, --help   show this help message and exit
+  -d, --debug  Increase verbosity, mainly for debugging purposes
+```
+
 Does not need any extra python libraries.
 
 The binaries were produces with:
