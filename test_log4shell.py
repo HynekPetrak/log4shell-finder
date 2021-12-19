@@ -4,6 +4,7 @@ import os
 import mmap
 import sys
 import pathlib
+import itertools
 import logging
 import zipfile
 import socket
@@ -11,7 +12,7 @@ import platform
 from enum import Enum
 from shlex import shlex
 
-VERSION = "1.2-20211219"
+VERSION = "1.3-20211219"
 
 log_name = 'log4shell_finder.log'
 
@@ -41,16 +42,23 @@ ch.setFormatter(formatter)
 log.addHandler(fh)
 log.addHandler(ch)
 
+CLASS_EXTS = (".class", ".esclazz")
+ZIP_EXTS = (".zip", ".jar", ".war", ".ear", ".aar")
 
-FILE_OLD_LOG4J = "log4j/dailyrollingfileappender.class"
-FILE_LOG4J_1 = "core/logevent.class"
-FILE_LOG4J_2 = "core/appender.class"
-FILE_LOG4J_3 = "core/filter.class"
-FILE_LOG4J_4 = "core/layout.class"
-FILE_LOG4J_5 = "core/loggercontext.class"
-FILE_LOG4J_2_10 = "appender/nosql/nosqlappender.class"
-FILE_LOG4J_VULNERABLE = "jndilookup.class"
-FILE_LOG4J_SAFE_CONDITION1 = "jndimanager.class"
+
+def get_class_names(base):
+    return tuple([a[0]+a[1] for a in itertools.product([base], CLASS_EXTS)])
+
+
+FILE_OLD_LOG4J = get_class_names("log4j/dailyrollingfileappender")
+FILE_LOG4J_1 = get_class_names("core/logevent")
+FILE_LOG4J_2 = get_class_names("core/appender")
+FILE_LOG4J_3 = get_class_names("core/filter")
+FILE_LOG4J_4 = get_class_names("core/layout")
+FILE_LOG4J_5 = get_class_names("core/loggercontext")
+FILE_LOG4J_2_10 = get_class_names("appender/nosql/nosqlappender")
+FILE_LOG4J_VULNERABLE = get_class_names("jndilookup")
+FILE_LOG4J_SAFE_CONDITION1 = get_class_names("jndimanager")
 
 ACTUAL_FILE_LOG4J_2 = "core/Appender.class"
 ACTUAL_FILE_LOG4J_3 = "core/Filter.class"
@@ -83,18 +91,11 @@ class FileType(Enum):
     OTHER = -1
 
 
-ZIP_EXTS = [".zip", ".jar", ".war", ".ear", ".aar"]
-
-#
-# @param fileName
-# @return 0 == zip, 1 == class, -1 = who knows...
-#
-
-
 def get_file_type(file_name):
+    """return 0 == zip, 1 == class, -1 = who knows..."""
     _, ext = os.path.splitext(file_name)
     ext = ext.lower()
-    if ext == ".class":
+    if ext in CLASS_EXTS:
         return FileType.CLASS
     if ext in ZIP_EXTS:
         return FileType.ZIP
@@ -116,7 +117,6 @@ def scan_archive(f, path=""):
     with zipfile.ZipFile(f) as zf:
         nl = zf.namelist()
 
-        isZip = False
         log4jProbe = [False] * 5
         isLog4j2_10 = False
         hasJndiLookup = False
@@ -133,7 +133,7 @@ def scan_archive(f, path=""):
         for fn in nl:
             fnl = fn.lower()
 
-            if fnl.endswith(tuple(ZIP_EXTS)):
+            if fnl.endswith(ZIP_EXTS):
                 with zf.open(fn, "r") as inner_zip:
                     scan_archive(inner_zip, path=path+":"+fn)
                     continue
@@ -141,12 +141,12 @@ def scan_archive(f, path=""):
             if fnl.endswith("log4j-core/pom.properties"):
                 pom_path = fn
                 continue
-            
+
             if fnl.endswith("log4j/pom.properties") and not pom_path:
                 pom_path = fn
                 continue
 
-            if fnl.endswith(".class"):
+            if fnl.endswith(CLASS_EXTS):
                 if fnl.endswith(FILE_LOG4J_VULNERABLE):
                     hasJndiLookup = True
                     with zf.open(fn, "r") as inner_class:
@@ -182,7 +182,7 @@ def scan_archive(f, path=""):
                 elif fnl.endswith(FILE_LOG4J_2_10):
                     isLog4j2_10 = True
 
-        log.debug(f" isZip = {isZip}, log4jProbe = {log4jProbe}, isLog4j2_10 = {isLog4j2_10}, hasJndiLookup = {hasJndiLookup}, hasJndiManager = {hasJndiManager}, isLog4J1_X = {isLog4J1_X}, isLog4j2_15 = {isLog4j2_15}, isLog4j2_16 = {isLog4j2_16}, isLog4j2_15_override = {isLog4j2_15_override}, isLog4j2_12_2 = {isLog4j2_12_2}, isLog4j2_12_2_override = {isLog4j2_12_2_override}, isLog4j2_17 = {isLog4j2_17} ")
+        log.debug(f"###  log4jProbe = {log4jProbe}, isLog4j2_10 = {isLog4j2_10}, hasJndiLookup = {hasJndiLookup}, hasJndiManager = {hasJndiManager}, isLog4J1_X = {isLog4J1_X}, isLog4j2_15 = {isLog4j2_15}, isLog4j2_16 = {isLog4j2_16}, isLog4j2_15_override = {isLog4j2_15_override}, isLog4j2_12_2 = {isLog4j2_12_2}, isLog4j2_12_2_override = {isLog4j2_12_2_override}, isLog4j2_17 = {isLog4j2_17} ")
 
         isLog4j = False
         isLog4j_2_10_0 = False
@@ -204,11 +204,11 @@ def scan_archive(f, path=""):
                                 isLog4j2_12_2 and not isLog4j2_12_2_override)
 
         if isLog4j:
-            version="2.x"
+            version = "2.x"
         elif isLog4J1_X:
-            version="1.x"
+            version = "1.x"
         else:
-            return 0
+            version = None
 
         if pom_path:
             with zf.open(pom_path, "r") as inf:
@@ -220,7 +220,7 @@ def scan_archive(f, path=""):
 
         if isLog4j:
             log.debug(
-                f" isLog4j = {isLog4j}, isLog4j_2_10_0 = {isLog4j_2_10_0}, isLog4j_2_12_2 = {isLog4j_2_12_2}, isVulnerable = {isVulnerable}, isSafe = {isSafe},")
+                f"### isLog4j = {isLog4j}, isLog4j_2_10_0 = {isLog4j_2_10_0}, isLog4j_2_12_2 = {isLog4j_2_12_2}, isVulnerable = {isVulnerable}, isSafe = {isSafe},")
             if isLog4J1_X:
                 prefix = f"[CRAZY] Package {path} contains Log4J-1.x AND Log4J-{version}"
                 foundLog4j1 = true
@@ -253,6 +253,10 @@ def scan_archive(f, path=""):
             log.info(
                 f"[*] [OLD] Package {path} contains Log4J-{version} <= 1.2.17")
             return 1
+        elif version:
+            log.info(
+                f"[*] [STRANGE] Package {path} contains pom.properties for Log4J-{version}, but classes missing")
+            return 0
 
     return 0
 
@@ -390,7 +394,8 @@ def main():
     for f in args.folders:
         hits += analize_directory(f)
 
-    log.info(f"[I] Finished, found {hits} vulnerable or unsafe log4j instances.")
+    log.info(
+        f"[I] Finished, found {hits} vulnerable or unsafe log4j instances.")
     if hits:
         sys.exit(2)
     else:
