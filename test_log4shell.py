@@ -9,8 +9,9 @@ import zipfile
 import socket
 import platform
 from enum import Enum
+from shlex import shlex
 
-VERSION = "1.1-20211219"
+VERSION = "1.2-20211219"
 
 log_name = 'log4shell_finder.log'
 
@@ -100,6 +101,16 @@ def get_file_type(file_name):
     return FileType.OTHER
 
 
+def parse_kv_pairs(text, item_sep=None, value_sep=".=-"):
+    """Parse key-value pairs from a shell-like text."""
+    # https://stackoverflow.com/questions/38737250/extracting-key-value-pairs-from-string-with-quotes
+    lexer = shlex(text, posix=True)
+    if item_sep:
+        lexer.whitespace = item_sep
+    lexer.wordchars += value_sep
+    return dict(word.split("=", maxsplit=1) for word in lexer)
+
+
 def scan_archive(f, path=""):
     log.debug(f"Scanning {path}")
     with zipfile.ZipFile(f) as zf:
@@ -117,6 +128,7 @@ def scan_archive(f, path=""):
         isLog4j2_15_override = False
         isLog4j2_12_2 = False
         isLog4j2_12_2_override = False
+        pom_path = None
 
         for fn in nl:
             fnl = fn.lower()
@@ -125,6 +137,14 @@ def scan_archive(f, path=""):
                 with zf.open(fn, "r") as inner_zip:
                     scan_archive(inner_zip, path=path+":"+fn)
                     continue
+
+            if fnl.endswith("log4j-core/pom.properties"):
+                pom_path = fn
+                continue
+            
+            if fnl.endswith("log4j/pom.properties") and not pom_path:
+                pom_path = fn
+                continue
 
             if fnl.endswith(".class"):
                 if fnl.endswith(FILE_LOG4J_VULNERABLE):
@@ -162,61 +182,77 @@ def scan_archive(f, path=""):
                 elif fnl.endswith(FILE_LOG4J_2_10):
                     isLog4j2_10 = True
 
-    log.debug(f" isZip = {isZip}, log4jProbe = {log4jProbe}, isLog4j2_10 = {isLog4j2_10}, hasJndiLookup = {hasJndiLookup}, hasJndiManager = {hasJndiManager}, isLog4J1_X = {isLog4J1_X}, isLog4j2_15 = {isLog4j2_15}, isLog4j2_16 = {isLog4j2_16}, isLog4j2_15_override = {isLog4j2_15_override}, isLog4j2_12_2 = {isLog4j2_12_2}, isLog4j2_12_2_override = {isLog4j2_12_2_override}, isLog4j2_17 = {isLog4j2_17} ")
+        log.debug(f" isZip = {isZip}, log4jProbe = {log4jProbe}, isLog4j2_10 = {isLog4j2_10}, hasJndiLookup = {hasJndiLookup}, hasJndiManager = {hasJndiManager}, isLog4J1_X = {isLog4J1_X}, isLog4j2_15 = {isLog4j2_15}, isLog4j2_16 = {isLog4j2_16}, isLog4j2_15_override = {isLog4j2_15_override}, isLog4j2_12_2 = {isLog4j2_12_2}, isLog4j2_12_2_override = {isLog4j2_12_2_override}, isLog4j2_17 = {isLog4j2_17} ")
 
-    isLog4j = False
-    isLog4j_2_10_0 = False
-    isLog4j_2_12_2 = False
-    isVulnerable = False
-    isSafe = False
-    if (log4jProbe[0] and log4jProbe[1] and log4jProbe[2] and
-            log4jProbe[3] and log4jProbe[4]):
-        isLog4j = True
-        if hasJndiLookup:
-            isVulnerable = True
-            if isLog4j2_10:
-                isLog4j_2_10_0 = True
-                if hasJndiManager:
-                    if (isLog4j2_17 or (isLog4j2_15 and not isLog4j2_15_override) or
-                            (isLog4j2_12_2 and not isLog4j2_12_2_override)):
-                        isSafe = True
-                        isLog4j_2_12_2 = (
-                            isLog4j2_12_2 and not isLog4j2_12_2_override)
+        isLog4j = False
+        isLog4j_2_10_0 = False
+        isLog4j_2_12_2 = False
+        isVulnerable = False
+        isSafe = False
+        if (log4jProbe[0] and log4jProbe[1] and log4jProbe[2] and
+                log4jProbe[3] and log4jProbe[4]):
+            isLog4j = True
+            if hasJndiLookup:
+                isVulnerable = True
+                if isLog4j2_10:
+                    isLog4j_2_10_0 = True
+                    if hasJndiManager:
+                        if (isLog4j2_17 or (isLog4j2_15 and not isLog4j2_15_override) or
+                                (isLog4j2_12_2 and not isLog4j2_12_2_override)):
+                            isSafe = True
+                            isLog4j_2_12_2 = (
+                                isLog4j2_12_2 and not isLog4j2_12_2_override)
 
-    if isLog4j:
-        log.debug(
-            f" isLog4j = {isLog4j}, isLog4j_2_10_0 = {isLog4j_2_10_0}, isLog4j_2_12_2 = {isLog4j_2_12_2}, isVulnerable = {isVulnerable}, isSafe = {isSafe},")
-        if isLog4J1_X:
-            prefix = f"[CRAZY] Package {path} contains Log4J-1.x AND Log4J-2.x"
-            foundLog4j1 = true
-        else:
-            prefix = f"Package {path} contains Log4J-2.x"
-        if isVulnerable:
-            if isLog4j_2_10_0:
-                if isSafe:
-                    if isLog4j2_17:
-                        buf = f"[-] [SAFE] {prefix} >= 2.17.0"
-                    elif isLog4j2_16:
-                        buf = f"[-] [NOTOKAY] {prefix} == 2.16.0"
-                    elif isLog4j_2_12_2:
-                        buf = f"[-] [SAFE] {prefix} == 2.12.2"
-                    else:
-                        buf = f"[*] [NOTOKAY] {prefix} == 2.15.0"
-                else:
-                    buf = f"[+] [VULNERABLE] {prefix} >= 2.10.0"
-            else:
-                buf = f"[+] [VULNERABLE] {prefix} >= 2.0-beta9 (< 2.10.0)"
-        else:
-            buf = f"[*] [MAYBESAFE] {prefix} <= 2.0-beta8 (JndiLookup.class not present) "
-        log.info(buf)
-        if not isSafe:
-            return 1
+        if isLog4j:
+            version="2.x"
+        elif isLog4J1_X:
+            version="1.x"
         else:
             return 0
-    elif isLog4J1_X:
-        log.info(
-            f"[*] [OLD] Package {path} contains Log4J-1.x <= 1.2.17")
-        return 1
+
+        if pom_path:
+            with zf.open(pom_path, "r") as inf:
+                content = inf.read().decode('UTF-8')
+                kv = parse_kv_pairs(content)
+            log.debug(f"pom.properties found at {path}:{pom_path}, {kv}")
+            if "version" in kv:
+                version = kv['version']
+
+        if isLog4j:
+            log.debug(
+                f" isLog4j = {isLog4j}, isLog4j_2_10_0 = {isLog4j_2_10_0}, isLog4j_2_12_2 = {isLog4j_2_12_2}, isVulnerable = {isVulnerable}, isSafe = {isSafe},")
+            if isLog4J1_X:
+                prefix = f"[CRAZY] Package {path} contains Log4J-1.x AND Log4J-{version}"
+                foundLog4j1 = true
+            else:
+                prefix = f"Package {path} contains Log4J-{version}"
+
+            if isVulnerable:
+                if isLog4j_2_10_0:
+                    if isSafe:
+                        if isLog4j2_17:
+                            buf = f"[-] [SAFE] {prefix} >= 2.17.0"
+                        elif isLog4j2_16:
+                            buf = f"[-] [NOTOKAY] {prefix} == 2.16.0"
+                        elif isLog4j_2_12_2:
+                            buf = f"[-] [SAFE] {prefix} == 2.12.2"
+                        else:
+                            buf = f"[*] [NOTOKAY] {prefix} == 2.15.0"
+                    else:
+                        buf = f"[+] [VULNERABLE] {prefix} >= 2.10.0"
+                else:
+                    buf = f"[+] [VULNERABLE] {prefix} >= 2.0-beta9 (< 2.10.0)"
+            else:
+                buf = f"[*] [MAYBESAFE] {prefix} <= 2.0-beta8 (JndiLookup.class not present) "
+            log.info(buf)
+            if not isSafe:
+                return 1
+            else:
+                return 0
+        elif isLog4J1_X:
+            log.info(
+                f"[*] [OLD] Package {path} contains Log4J-{version} <= 1.2.17")
+            return 1
 
     return 0
 
@@ -238,7 +274,7 @@ def check_class(f):
                ACTUAL_FILE_LOG4J_5, ACTUAL_FILE_LOG4J_JNDI_LOOKUP]:
         if not os.path.exists(parent.parent.joinpath(fn)):
             log.info(
-                f"[*] [MAYBESAFE] {msg} <= 2.0-beta8 (JndiLookup.class not present) ")
+                f"[*] [MAYBESAFE] {msg} <= 2.0-beta8 ({fn} not present) ")
             return 0
 
     isVulnerable = True

@@ -11,6 +11,12 @@ Can correctly detect log4j inside executable spring-boot jars/wars, dependencies
 into [uber jars](https://mergebase.com/blog/software-composition-analysis-sca-vs-java-uber-jars/), shaded jars, and even
 exploded jar files just sitting uncompressed on the file-system (aka *.class).
 
+## Changelog
+
+### Version 1.2-20211219
+
+- get exact log4j version from pom.properties
+
 ## Usage
 
 Either run from a python interpreter or use the Windows/Linux binaries from the [dist](dist) folder.
