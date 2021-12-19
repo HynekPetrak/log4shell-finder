@@ -328,7 +328,7 @@ def process_file(filename):
     return hits
 
 
-def analize_directory(f):
+def analyze_directory(f):
     hits = 0
     f = os.path.realpath(f)
     if os.path.isdir(f):
@@ -392,7 +392,7 @@ def main():
 
     hits = 0
     for f in args.folders:
-        hits += analize_directory(f)
+        hits += analyze_directory(f)
 
     log.info(
         f"[I] Finished, found {hits} vulnerable or unsafe log4j instances.")
