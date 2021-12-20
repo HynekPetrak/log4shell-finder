@@ -15,7 +15,7 @@ exploded jar files just sitting uncompressed on the file-system (aka *.class).
 
 ### Version 1.5-20211220
 
-- fixed bug where `--exclude-dirs` skipped the give directory, but not it's subdirectories
+- fixed bug where `--exclude-dirs` skipped the given directory, but not it's subdirectories
 
 ### Version 1.4-20211220
 
