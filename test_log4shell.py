@@ -368,11 +368,11 @@ def main():
     parser.add_argument('--exclude-dirs', nargs='+', default=[],
             help='Don\'t search directories containing these strings (multiple supported)', metavar='DIR')
     parser.add_argument('--same-fs', action="store_true",
-                        help="Don't scan mounted volumens")
+                        help="Don't scan mounted volumens.")
     parser.add_argument('-d', '--debug', action="store_true",
-                        help='Increase verbosity, mainly for debugging purposes')
+                        help='Increase verbosity, mainly for debugging purposes.')
     parser.add_argument('folders', nargs='+',
-                        help='List of folders or files to scan')
+                        help='List of folders or files to scan. Use "-" to read list of files from stdin.')
 
     args = parser.parse_args()
     if args.debug:
@@ -395,10 +395,10 @@ def main():
           }
     log.info(f"[I] {str(hi).strip('{}')}")
 
-    for fn in args.folders:
-        if not os.path.exists(fn):
-            log.error(f"[E] Invalid path: [{fn}]")
-            sys.exit(102)
+    #for fn in args.folders:
+    #    if not os.path.exists(fn):
+    #        log.error(f"[E] Invalid path: [{fn}]")
+    #        sys.exit(102)
 
     log.info("[I] Analyzing paths (could take a long time).")
 
@@ -407,7 +407,11 @@ def main():
         if f.lower() in args.exclude_dirs:
             log.info(f"[I] Skipping blaclisted folder: {f}")
             continue
-        hits += analyze_directory(f, args.exclude_dirs, args.same_fs)
+        if f == "-":
+            for l in sys.stdin:
+                hits += analyze_directory(l.rstrip("\r\n"), args.exclude_dirs, args.same_fs)
+        else:
+            hits += analyze_directory(f, args.exclude_dirs, args.same_fs)
 
     log.info(
         f"[I] Finished, found {hits} vulnerable or unsafe log4j instances.")
