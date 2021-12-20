@@ -13,7 +13,7 @@ import zipfile
 from enum import Enum
 from shlex import shlex
 
-VERSION = "1.4-20211220"
+VERSION = "1.5-20211220"
 
 log_name = 'log4shell_finder.log'
 
@@ -386,12 +386,14 @@ def analyze_directory(f, blacklist, same_fs):
     hits = 0
     f = os.path.realpath(f)
     if os.path.isdir(f):
-        for (dirpath, dirnames, filenames) in os.walk(f):
+        for (dirpath, dirnames, filenames) in os.walk(f, topdown=True):
             if same_fs and not os.path.samefile(f, dirpath) and os.path.ismount(dirpath):
                 log.info(f"[I] Skipping mount point: {dirpath}")
+                dirnames.clear()
                 continue
             if dirpath.lower() in blacklist:
                 log.info(f"[I] Skipping blaclisted folder: {dirpath}")
+                dirnames.clear()
                 continue
             for filename in filenames:
                 fullname = os.path.join(dirpath, filename)
