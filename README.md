@@ -13,6 +13,13 @@ exploded jar files just sitting uncompressed on the file-system (aka *.class).
 
 ## Changelog
 
+### Version 1.4-20211220
+
+- added option `--same-fs` to skip mounted volumes while scanning.
+- findings can be saved in json format with `--json-out <filename>`
+- skip folder with `--exclude-dirs DIR [DIR ...]` parameter
+- use `-` as folder name to source folder names from stdin, e.g. `echo "/home" | test_log4shell.py -`
+
 ### Version 1.3-20211219
 
 - handle [elastic's](https://github.com/elastic/apm-agent-java/blob/2775b70a6d4b5cf2eecd2693545f2acc46e1b8a3/apm-agent-bootstrap/pom.xml#L128) SHADED_CLASS_EXTENSION ".esclazz"
@@ -34,11 +41,16 @@ usage:  Type "test_log4shell.py --help" for more information
 Searches file system for vulnerable log4j version.
 
 positional arguments:
-  folders      List of folders or files to scan
+  folders               List of folders or files to scan. Use "-" to read list of files from stdin.
 
 optional arguments:
-  -h, --help   show this help message and exit
-  -d, --debug  Increase verbosity, mainly for debugging purposes
+  -h, --help            show this help message and exit
+  --exclude-dirs DIR [DIR ...]
+                        Don't search directories containing these strings (multiple supported)
+  --same-fs             Don't scan mounted volumens.
+  --json-out [FILENAME]
+                        Save results to json file.
+  -d, --debug           Increase verbosity, mainly for debugging purposes.
 ```
 
 Does not require any extra python libraries.

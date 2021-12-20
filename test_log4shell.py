@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 import argparse
-import os
-import mmap
-import sys
-import pathlib
 import itertools
+import json
 import logging
-import zipfile
-import socket
+import mmap
+import os
+import pathlib
 import platform
+import socket
+import sys
+import zipfile
 from enum import Enum
 from shlex import shlex
 
-VERSION = "1.3-20211219"
+VERSION = "1.4-20211220"
 
 log_name = 'log4shell_finder.log'
 
@@ -89,6 +90,35 @@ class FileType(Enum):
     CLASS = 0
     ZIP = 1
     OTHER = -1
+
+
+class Status(Enum):
+    SAFE = "[-] [SAFE]"
+    VULNERABLE = "[+] [VULNERABLE]"
+    MAYBESAFE = "[*] [MAYBESAFE]"
+    NOTOKAY = "[+] [NOTOKAY]"
+    OLD = "[*] [OLD]"
+    STRANGE = "[*] [STRANGE]"
+
+
+class Container(Enum):
+    UNDEFINED = 0
+    PACKAGE = 1
+    FOLDER = 2
+
+
+found_items = []
+def log_item(path, status, message, pom_version="unknown", container=Container.UNDEFINED):
+    global found_items
+    found_items.append({
+        "container": container.name.title(),
+        "path": str(path),
+        "status": status.name.title(),
+        "message": message,
+        "pom_version": pom_version
+        })
+    message = f"{status.value} {container.name.title()} {path} {message}"
+    log.info(message)
 
 
 def get_file_type(file_name):
@@ -222,40 +252,49 @@ def scan_archive(f, path=""):
             log.debug(
                 f"### isLog4j = {isLog4j}, isLog4j_2_10_0 = {isLog4j_2_10_0}, isLog4j_2_12_2 = {isLog4j_2_12_2}, isVulnerable = {isVulnerable}, isSafe = {isSafe},")
             if isLog4J1_X:
-                prefix = f"[CRAZY] Package {path} contains Log4J-1.x AND Log4J-{version}"
+                prefix = f"contains Log4J-1.x AND Log4J-{version}"
                 foundLog4j1 = true
             else:
-                prefix = f"Package {path} contains Log4J-{version}"
+                prefix = f"contains Log4J-{version}"
 
             if isVulnerable:
                 if isLog4j_2_10_0:
                     if isSafe:
                         if isLog4j2_17:
-                            buf = f"[-] [SAFE] {prefix} >= 2.17.0"
+                            buf = f"{prefix} >= 2.17.0"
+                            status = Status.SAFE
                         elif isLog4j2_16:
-                            buf = f"[-] [NOTOKAY] {prefix} == 2.16.0"
+                            buf = f"{prefix} == 2.16.0"
+                            status = Status.NOTOKAY
                         elif isLog4j_2_12_2:
-                            buf = f"[-] [SAFE] {prefix} == 2.12.2"
+                            buf = f"{prefix} == 2.12.2"
+                            status = Status.SAFE
                         else:
-                            buf = f"[*] [NOTOKAY] {prefix} == 2.15.0"
+                            buf = f"{prefix} == 2.15.0"
+                            status = Status.NOTOKAY
                     else:
-                        buf = f"[+] [VULNERABLE] {prefix} >= 2.10.0"
+                        buf = f"{prefix} >= 2.10.0"
+                        status = Status.VULNERABLE
                 else:
-                    buf = f"[+] [VULNERABLE] {prefix} >= 2.0-beta9 (< 2.10.0)"
+                    buf = f"{prefix} >= 2.0-beta9 (< 2.10.0)"
+                    status = Status.VULNERABLE
             else:
-                buf = f"[*] [MAYBESAFE] {prefix} <= 2.0-beta8 (JndiLookup.class not present) "
-            log.info(buf)
+                buf = f"{prefix} <= 2.0-beta8 (JndiLookup.class not present) "
+                status = Status.MAYBESAFE
+            log_item(path, status, buf, version, Container.PACKAGE)
             if not isSafe:
                 return 1
             else:
                 return 0
         elif isLog4J1_X:
-            log.info(
-                f"[*] [OLD] Package {path} contains Log4J-{version} <= 1.2.17")
+            log_item(path, Status.OLD,
+                    f"contains Log4J-{version} <= 1.2.17",
+                    version, Container.PACKAGE)
             return 1
         elif version:
-            log.info(
-                f"[*] [STRANGE] Package {path} contains pom.properties for Log4J-{version}, but classes missing")
+            log_item(path, Status.STRANGE,
+                     f"contains pom.properties for Log4J-{version}, but classes missing",
+                     version, Container.PACKAGE)
             return 0
 
     return 0
@@ -264,26 +303,30 @@ def scan_archive(f, path=""):
 def check_class(f):
     parent = pathlib.PurePath(f).parent
     if f.lower().endswith(FILE_OLD_LOG4J):
-        log.info(
-            f"[*] [OLD] Folder {path} contains Log4J-1.x <= 1.2.17")
+        log_item(parent, Status.OLD,
+                 f"contains Log4J-1.x <= 1.2.17",
+                 container=Container.FOLDER)
         return 1
 
     if not f.lower().endswith(FILE_LOG4J_1):
         return 0
 
     log.debug(f"[I] Match on {f}")
-    msg = f"Folder {parent} contains Log4J-2.x"
+    msg = f"contains Log4J-2.x"
 
     for fn in [ACTUAL_FILE_LOG4J_2, ACTUAL_FILE_LOG4J_3, ACTUAL_FILE_LOG4J_4,
                ACTUAL_FILE_LOG4J_5, ACTUAL_FILE_LOG4J_JNDI_LOOKUP]:
         if not os.path.exists(parent.parent.joinpath(fn)):
-            log.info(
-                f"[*] [MAYBESAFE] {msg} <= 2.0-beta8 ({fn} not present) ")
+            log_item(parent, Status.MAYBESAFE,
+                f"{msg} <= 2.0-beta8 ({fn} not present) ",
+                container=Container.FOLDER)
             return 0
 
     isVulnerable = True
     if not os.path.exists(parent.parent.joinpath(ACTUAL_FILE_LOG4J_2_10)):
-        log.info(f"[+] [VULNERABLE] {msg} >= 2.0-beta9 (< 2.10.0)")
+        log_item(parent, Status.VULNERABLE,
+                f"{msg} >= 2.0-beta9 (< 2.10.0)",
+                container=Container.FOLDER)
         return 1
     else:
         # Check for 2.12.2...
@@ -292,23 +335,34 @@ def check_class(f):
             with open(fn, "rb") as f:
                 with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ) as mm:
                     if mm.find(IS_LOG4J_NOT_SAFE_2_12_2) == -1:
-                        log.info(f"[-] [SAFE] {msg} == 2.12.2")
+                        log_item(parent, Status.SAFE,
+                                f"{msg} == 2.12.2",
+                                container=Container.FOLDER)
                         return 0
                     if mm.find(INSIDE_LOG4J_2_17_0) >= 0:
-                        log.info(f"[-] [SAFE] {msg} >= 2.17.0")
+                        log_item(parent, Status.SAFE,
+                                f"{msg} >= 2.17.0",
+                                container=Container.FOLDER)
                         return 0
         fn = parent.parent.joinpath(ACTUAL_FILE_LOG4J_JNDI_MANAGER)
         if os.path.exists(fn):
             with open(fn, "rb") as f:
                 with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ) as mm:
                     if mm.find(IS_LOG4J_SAFE_2_16_0) >= 0:
-                        log.info(f"[-] [NOTOKAY] {msg} == 2.16.0")
+                        log_item(parent, Status.NOTOKAY,
+                                f"{msg} == 2.16.0",
+                                container=Container.FOLDER)
                         return 0
                     elif mm.find(IS_LOG4J_SAFE_2_15_0) >= 0:
-                        log.info(f"[*] [NOTOKAY] {msg} == 2.15.0")
+                        log_item(parent, Status.NOTOKAY,
+                                f"{msg} == 2.15.0",
+                                container=Container.FOLDER)
                         return 1
 
-    log.info(f"[+] [VULNERABLE] {msg} >= 2.10.0")
+    log_item(parent, Status.VULNERABLE,
+            f"{msg} >= 2.10.0",
+            container=Container.FOLDER)
+
     return 1
 
 
@@ -366,9 +420,11 @@ def main():
         usage='\tType "%(prog)s --help" for more information\n' +
         '\tOn Windows "%(prog)s c:\\ d:\\"\n\tOn Linux "%(prog)s /"')
     parser.add_argument('--exclude-dirs', nargs='+', default=[],
-            help='Don\'t search directories containing these strings (multiple supported)', metavar='DIR')
+                        help='Don\'t search directories containing these strings (multiple supported)', metavar='DIR')
     parser.add_argument('--same-fs', action="store_true",
                         help="Don't scan mounted volumens.")
+    parser.add_argument('--json-out', nargs='?',
+                        help="Save results to json file.", metavar='FILENAME')
     parser.add_argument('-d', '--debug', action="store_true",
                         help='Increase verbosity, mainly for debugging purposes.')
     parser.add_argument('folders', nargs='+',
@@ -395,7 +451,7 @@ def main():
           }
     log.info(f"[I] {str(hi).strip('{}')}")
 
-    #for fn in args.folders:
+    # for fn in args.folders:
     #    if not os.path.exists(fn):
     #        log.error(f"[E] Invalid path: [{fn}]")
     #        sys.exit(102)
@@ -409,9 +465,16 @@ def main():
             continue
         if f == "-":
             for l in sys.stdin:
-                hits += analyze_directory(l.rstrip("\r\n"), args.exclude_dirs, args.same_fs)
+                hits += analyze_directory(l.rstrip("\r\n"),
+                                          args.exclude_dirs, args.same_fs)
         else:
             hits += analyze_directory(f, args.exclude_dirs, args.same_fs)
+
+    global found_items
+    if args.json_out:
+        with open(args.json_out, "w") as f:
+            json.dump(found_items, f, indent=2)
+        log.info(f"[I] Results saved into {args.json_out}")
 
     log.info(
         f"[I] Finished, found {hits} vulnerable or unsafe log4j instances.")
