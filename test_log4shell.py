@@ -13,7 +13,7 @@ import zipfile
 from enum import Enum
 from shlex import shlex
 
-VERSION = "1.5-20211220"
+VERSION = "1.6RC-20211220"
 
 log_name = 'log4shell_finder.log'
 
@@ -271,7 +271,7 @@ def scan_archive(f, path=""):
                             status = Status.SAFE
                         else:
                             buf = f"{prefix} == 2.15.0"
-                            status = Status.NOTOKAY
+                            status = Status.VULNERABLE
                     else:
                         buf = f"{prefix} >= 2.10.0"
                         status = Status.VULNERABLE
@@ -354,7 +354,7 @@ def check_class(f):
                                 container=Container.FOLDER)
                         return 0
                     elif mm.find(IS_LOG4J_SAFE_2_15_0) >= 0:
-                        log_item(parent, Status.NOTOKAY,
+                        log_item(parent, Status.VULNERABLE,
                                 f"{msg} == 2.15.0",
                                 container=Container.FOLDER)
                         return 1
