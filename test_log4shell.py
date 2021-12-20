@@ -43,7 +43,7 @@ log.addHandler(fh)
 log.addHandler(ch)
 
 CLASS_EXTS = (".class", ".esclazz")
-ZIP_EXTS = (".zip", ".jar", ".war", ".ear", ".aar")
+ZIP_EXTS = (".zip", ".jar", ".war", ".ear", ".aar", ".jpi", ".hpi")
 
 
 def get_class_names(base):
@@ -328,11 +328,17 @@ def process_file(filename):
     return hits
 
 
-def analyze_directory(f):
+def analyze_directory(f, blacklist, same_fs):
     hits = 0
     f = os.path.realpath(f)
     if os.path.isdir(f):
         for (dirpath, dirnames, filenames) in os.walk(f):
+            if same_fs and os.path.ismount(dirpath):
+                log.info(f"[I] Skipping mount point: {dirpath}")
+                continue
+            if dirpath.lower() in blacklist:
+                log.info(f"[I] Skipping blaclisted folder: {dirpath}")
+                continue
             for filename in filenames:
                 fullname = os.path.join(dirpath, filename)
                 hits += process_file(fullname)
@@ -359,15 +365,21 @@ def main():
         description='Searches file system for vulnerable log4j version.',
         usage='\tType "%(prog)s --help" for more information\n' +
         '\tOn Windows "%(prog)s c:\\ d:\\"\n\tOn Linux "%(prog)s /"')
-    parser.add_argument('folders', nargs='+',
-                        help='List of folders or files to scan')
+    parser.add_argument('--exclude-dirs', nargs='+', default=[],
+            help='Don\'t search directories containing these strings (multiple supported)', metavar='DIR')
+    parser.add_argument('--same-fs', action="store_true",
+                        help="Don't scan mounted volumens")
     parser.add_argument('-d', '--debug', action="store_true",
                         help='Increase verbosity, mainly for debugging purposes')
+    parser.add_argument('folders', nargs='+',
+                        help='List of folders or files to scan')
 
     args = parser.parse_args()
     if args.debug:
         fh.setLevel(logging.DEBUG)
         ch.setLevel(logging.DEBUG)
+
+    args.exclude_dirs = [s.lower() for s in args.exclude_dirs]
 
     log.info(f"[I] Starting {__file__} ver. {VERSION}")
     log.info("[I] Parameters: " + " ".join(sys.argv))
@@ -392,7 +404,10 @@ def main():
 
     hits = 0
     for f in args.folders:
-        hits += analyze_directory(f)
+        if f.lower() in args.exclude_dirs:
+            log.info(f"[I] Skipping blaclisted folder: {f}")
+            continue
+        hits += analyze_directory(f, args.exclude_dirs, args.same_fs)
 
     log.info(
         f"[I] Finished, found {hits} vulnerable or unsafe log4j instances.")
