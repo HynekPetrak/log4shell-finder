@@ -333,7 +333,7 @@ def analyze_directory(f, blacklist, same_fs):
     f = os.path.realpath(f)
     if os.path.isdir(f):
         for (dirpath, dirnames, filenames) in os.walk(f):
-            if same_fs and os.path.ismount(dirpath):
+            if same_fs and not os.path.samefile(f, dirpath) and os.path.ismount(dirpath):
                 log.info(f"[I] Skipping mount point: {dirpath}")
                 continue
             if dirpath.lower() in blacklist:
