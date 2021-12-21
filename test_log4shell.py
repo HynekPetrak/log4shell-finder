@@ -13,7 +13,7 @@ import zipfile
 from enum import Enum
 from shlex import shlex
 
-VERSION = "1.6-20211220"
+VERSION = "1.7pre-20211220"
 
 log_name = 'log4shell_finder.log'
 
@@ -43,7 +43,7 @@ ch.setFormatter(formatter)
 log.addHandler(fh)
 log.addHandler(ch)
 
-CLASS_EXTS = (".class", ".esclazz")
+CLASS_EXTS = (".class", ".esclazz", ".classdata")
 ZIP_EXTS = (".zip", ".jar", ".war", ".ear", ".aar", ".jpi", ".hpi")
 
 
