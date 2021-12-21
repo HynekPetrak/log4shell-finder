@@ -13,6 +13,8 @@ Can correctly detect log4j inside executable spring-boot jars/wars, dependencies
 into [uber jars](https://mergebase.com/blog/software-composition-analysis-sca-vs-java-uber-jars/), shaded jars, and even
 exploded jar files just sitting uncompressed on the file-system (aka *.class).
 
+It can also handle shaded class files - extensions .esclazz (elastic) and .classdata (Azure).
+
 ## Changelog
 
 ### Version 1.6-20211221
