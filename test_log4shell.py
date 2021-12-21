@@ -312,11 +312,17 @@ def scan_archive(f, path=""):
 
     return 0
 
+def check_path_exists(path):
+    for ext in CLASS_EXTS:
+        if os.path.exists(path.with_suffix(ext)):
+            return 1
+    return 0
+
 
 def check_class(f):
     parent = pathlib.PurePath(f).parent
     if f.lower().endswith(FILE_OLD_LOG4J):
-        if os.path.exists(parent.joinpath(ACTUAL_FILE_LOG4J1_APPENDER)):
+        if check_path_exists(parent.joinpath(ACTUAL_FILE_LOG4J1_APPENDER)):
             log_item(parent, Status.OLD_VULNERABLE,
                      f"contains Log4J-1.x <= 1.2.17, JMSAppender.class found",
                      container=Container.FOLDER)
@@ -335,14 +341,14 @@ def check_class(f):
 
     for fn in [ACTUAL_FILE_LOG4J_2, ACTUAL_FILE_LOG4J_3, ACTUAL_FILE_LOG4J_4,
                ACTUAL_FILE_LOG4J_5, ACTUAL_FILE_LOG4J_JNDI_LOOKUP]:
-        if not os.path.exists(parent.parent.joinpath(fn)):
+        if not check_path_exists(parent.parent.joinpath(fn)):
             log_item(parent, Status.MAYBESAFE,
                 f"{msg} <= 2.0-beta8 ({fn} not present) ",
                 container=Container.FOLDER)
             return 0
 
     isVulnerable = True
-    if not os.path.exists(parent.parent.joinpath(ACTUAL_FILE_LOG4J_2_10)):
+    if not check_path_exists(parent.parent.joinpath(ACTUAL_FILE_LOG4J_2_10)):
         log_item(parent, Status.VULNERABLE,
                 f"{msg} >= 2.0-beta9 (< 2.10.0)",
                 container=Container.FOLDER)
@@ -350,7 +356,7 @@ def check_class(f):
     else:
         # Check for 2.12.2...
         fn = parent.parent.joinpath(ACTUAL_FILE_LOG4J_JNDI_LOOKUP)
-        if os.path.exists(fn):
+        if check_path_exists(fn):
             with open(fn, "rb") as f:
                 with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ) as mm:
                     if mm.find(IS_LOG4J_NOT_SAFE_2_12_2) == -1:
@@ -364,7 +370,7 @@ def check_class(f):
                                 container=Container.FOLDER)
                         return 0
         fn = parent.parent.joinpath(ACTUAL_FILE_LOG4J_JNDI_MANAGER)
-        if os.path.exists(fn):
+        if check_path_exists(fn):
             with open(fn, "rb") as f:
                 with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ) as mm:
                     if mm.find(IS_LOG4J_SAFE_2_16_0) >= 0:
