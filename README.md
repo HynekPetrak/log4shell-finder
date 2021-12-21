@@ -4,14 +4,20 @@ Python port of https://github.com/mergebase/log4j-detector log4j-detector is cop
 
 Detects Log4J versions on your file-system within any application that are vulnerable to [CVE-2021-44228](https://mergebase.com/vulnerability/CVE-2021-44228/)  and [CVE-2021-45046](https://mergebase.com/vulnerability/CVE-2021-45046/). It is able to even find instances that are hidden several layers deep. Works on Linux, Windows, and Mac, and everywhere else Python runs, too!
 
-Currently reports `log4j-core` versions 2.12.2 and 2.17.0 as **SAFE**, 2.15.0 and 2.16.0 as **NOTOKAY** and all other versions as **VULNERABLE**
+Currently reports `log4j-core` versions 2.12.2 and 2.17.0 as **SAFE**, 2.16.0 as **NOTOKAY** and all other versions as **VULNERABLE**
 (although it does report pre-2.0-beta9 as "**MAYBESAFE**").
+
+log4j v1.x may appear in the log either as **OLDUNSAFE** or **OLDSAFE** depending on presence of JMSAppender.class.
 
 Can correctly detect log4j inside executable spring-boot jars/wars, dependencies blended
 into [uber jars](https://mergebase.com/blog/software-composition-analysis-sca-vs-java-uber-jars/), shaded jars, and even
 exploded jar files just sitting uncompressed on the file-system (aka *.class).
 
 ## Changelog
+
+### Version 1.6-20211221
+
+- added checks for JMSAppender.class within log4j v1.x instances
 
 ### Version 1.5-20211220
 

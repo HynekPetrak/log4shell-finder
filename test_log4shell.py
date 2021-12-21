@@ -13,7 +13,7 @@ import zipfile
 from enum import Enum
 from shlex import shlex
 
-VERSION = "1.6RC-20211220"
+VERSION = "1.6-20211220"
 
 log_name = 'log4shell_finder.log'
 
@@ -52,6 +52,7 @@ def get_class_names(base):
 
 
 FILE_OLD_LOG4J = get_class_names("log4j/dailyrollingfileappender")
+FILE_OLD_LOG4J_APPENDER = get_class_names("net/jmsappender")
 FILE_LOG4J_1 = get_class_names("core/logevent")
 FILE_LOG4J_2 = get_class_names("core/appender")
 FILE_LOG4J_3 = get_class_names("core/filter")
@@ -68,6 +69,7 @@ ACTUAL_FILE_LOG4J_5 = "core/LoggerContext.class"
 ACTUAL_FILE_LOG4J_2_10 = "core/appender/nosql/NoSqlAppender.class"
 ACTUAL_FILE_LOG4J_JNDI_LOOKUP = "core/lookup/JndiLookup.class"
 ACTUAL_FILE_LOG4J_JNDI_MANAGER = "core/net/JndiManager.class"
+ACTUAL_FILE_LOG4J1_APPENDER = "net/JMSAppender.class"
 
 # This occurs in "JndiManager.class" in 2.15.0
 IS_LOG4J_SAFE_2_15_0 = b"Invalid JNDI URI - {}"
@@ -98,6 +100,8 @@ class Status(Enum):
     MAYBESAFE = "[*] [MAYBESAFE]"
     NOTOKAY = "[+] [NOTOKAY]"
     OLD = "[*] [OLD]"
+    OLD_VULNERABLE = "[+] [OLDUNSAFE]"
+    OLD_SAFE = "[-] [OLDSAFE]"
     STRANGE = "[*] [STRANGE]"
 
 
@@ -152,6 +156,7 @@ def scan_archive(f, path=""):
         hasJndiLookup = False
         hasJndiManager = False
         isLog4J1_X = False
+        isLog4J1_unsafe = False
         isLog4j2_15 = False
         isLog4j2_16 = False
         isLog4j2_17 = False
@@ -199,6 +204,8 @@ def scan_archive(f, path=""):
                             isLog4j2_15_override = True
                 elif fnl.endswith(FILE_OLD_LOG4J):
                     isLog4J1_X = True
+                elif fnl.endswith(FILE_OLD_LOG4J_APPENDER):
+                    isLog4J1_unsafe = True
                 elif fnl.endswith(FILE_LOG4J_1):
                     log4jProbe[0] = True
                 elif fnl.endswith(FILE_LOG4J_2):
@@ -287,10 +294,16 @@ def scan_archive(f, path=""):
             else:
                 return 0
         elif isLog4J1_X:
-            log_item(path, Status.OLD,
-                    f"contains Log4J-{version} <= 1.2.17",
-                    version, Container.PACKAGE)
-            return 1
+            if isLog4J1_unsafe:
+                log_item(path, Status.OLD_VULNERABLE,
+                        f"contains Log4J-{version} <= 1.2.17, JMSAppender.class found",
+                        version, Container.PACKAGE)
+                return 1
+            else:
+                log_item(path, Status.OLD_SAFE,
+                        f"contains Log4J-{version} <= 1.2.17, JMSAppender.class not found",
+                        version, Container.PACKAGE)
+                return 0
         elif version:
             log_item(path, Status.STRANGE,
                      f"contains pom.properties for Log4J-{version}, but classes missing",
@@ -303,10 +316,16 @@ def scan_archive(f, path=""):
 def check_class(f):
     parent = pathlib.PurePath(f).parent
     if f.lower().endswith(FILE_OLD_LOG4J):
-        log_item(parent, Status.OLD,
-                 f"contains Log4J-1.x <= 1.2.17",
-                 container=Container.FOLDER)
-        return 1
+        if os.path.exists(parent.joinpath(ACTUAL_FILE_LOG4J1_APPENDER)):
+            log_item(parent, Status.OLD_VULNERABLE,
+                     f"contains Log4J-1.x <= 1.2.17, JMSAppender.class found",
+                     container=Container.FOLDER)
+            return 1
+        else:
+            log_item(parent, Status.OLD_SAFE,
+                     f"contains Log4J-1.x <= 1.2.17, JMSAppender.class not found",
+                     container=Container.FOLDER)
+            return 0
 
     if not f.lower().endswith(FILE_LOG4J_1):
         return 0
