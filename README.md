@@ -1,4 +1,4 @@
-# log4shell_finder
+# log4shell-finder - Fastest file system scanner for log4j instances
 
 Python port of https://github.com/mergebase/log4j-detector log4j-detector is copyright (c) 2021 - MergeBase Software Inc. https://mergebase.com/
 
