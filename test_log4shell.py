@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import csv
 import itertools
 import json
 import logging
@@ -9,13 +10,14 @@ import pathlib
 import platform
 import socket
 import sys
+import time
 import zipfile
 from enum import Enum
 from shlex import shlex
 
-VERSION = "1.7pre-20211220"
+VERSION = "1.8-20211222"
 
-log_name = 'log4shell_finder.log'
+log_name = 'log4shell-finder.log'
 
 # determine if application is a script file or frozen exe
 if getattr(sys, 'frozen', False):
@@ -25,7 +27,7 @@ elif __file__:
 
 log_path = os.path.join(application_path, log_name)
 
-log = logging.getLogger("log4shell_finder")
+log = logging.getLogger("log4shell-finder")
 log.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
 fh = logging.FileHandler(log_path)
@@ -100,8 +102,8 @@ class Status(Enum):
     MAYBESAFE = "[*] [MAYBESAFE]"
     NOTOKAY = "[+] [NOTOKAY]"
     OLD = "[*] [OLD]"
-    OLD_VULNERABLE = "[+] [OLDUNSAFE]"
-    OLD_SAFE = "[-] [OLDSAFE]"
+    OLDUNSAFE = "[+] [OLDUNSAFE]"
+    OLDSAFE = "[-] [OLDSAFE]"
     STRANGE = "[*] [STRANGE]"
 
 
@@ -117,7 +119,7 @@ def log_item(path, status, message, pom_version="unknown", container=Container.U
     found_items.append({
         "container": container.name.title(),
         "path": str(path),
-        "status": status.name.title(),
+        "status": status.name,
         "message": message,
         "pom_version": pom_version
         })
@@ -286,7 +288,7 @@ def scan_archive(f, path=""):
                     buf = f"{prefix} >= 2.0-beta9 (< 2.10.0)"
                     status = Status.VULNERABLE
             else:
-                buf = f"{prefix} <= 2.0-beta8 (JndiLookup.class not present) "
+                buf = f"{prefix} <= 2.0-beta8 (JndiLookup.class not present)"
                 status = Status.MAYBESAFE
             log_item(path, status, buf, version, Container.PACKAGE)
             if not isSafe:
@@ -295,12 +297,12 @@ def scan_archive(f, path=""):
                 return 0
         elif isLog4J1_X:
             if isLog4J1_unsafe:
-                log_item(path, Status.OLD_VULNERABLE,
+                log_item(path, Status.OLDUNSAFE,
                         f"contains Log4J-{version} <= 1.2.17, JMSAppender.class found",
                         version, Container.PACKAGE)
                 return 1
             else:
-                log_item(path, Status.OLD_SAFE,
+                log_item(path, Status.OLDSAFE,
                         f"contains Log4J-{version} <= 1.2.17, JMSAppender.class not found",
                         version, Container.PACKAGE)
                 return 0
@@ -323,12 +325,12 @@ def check_class(f):
     parent = pathlib.PurePath(f).parent
     if f.lower().endswith(FILE_OLD_LOG4J):
         if check_path_exists(parent.joinpath(ACTUAL_FILE_LOG4J1_APPENDER)):
-            log_item(parent, Status.OLD_VULNERABLE,
+            log_item(parent, Status.OLDUNSAFE,
                      f"contains Log4J-1.x <= 1.2.17, JMSAppender.class found",
                      container=Container.FOLDER)
             return 1
         else:
-            log_item(parent, Status.OLD_SAFE,
+            log_item(parent, Status.OLDSAFE,
                      f"contains Log4J-1.x <= 1.2.17, JMSAppender.class not found",
                      container=Container.FOLDER)
             return 0
@@ -343,7 +345,7 @@ def check_class(f):
                ACTUAL_FILE_LOG4J_5, ACTUAL_FILE_LOG4J_JNDI_LOOKUP]:
         if not check_path_exists(parent.parent.joinpath(fn)):
             log_item(parent, Status.MAYBESAFE,
-                f"{msg} <= 2.0-beta8 ({fn} not present) ",
+                f"{msg} <= 2.0-beta8 ({fn} not present)",
                 container=Container.FOLDER)
             return 0
 
@@ -393,6 +395,7 @@ def check_class(f):
 
 def process_file(filename):
     hits = 0
+    process_file.files_checked += 1
     try:
         ft = get_file_type(filename)
         if ft == FileType.OTHER:
@@ -405,6 +408,8 @@ def process_file(filename):
     except Exception as ex:
         log.error(f"[E] Error processing {filename}: {ex}")
     return hits
+
+process_file.files_checked=0
 
 
 def analyze_directory(f, blacklist, same_fs):
@@ -420,12 +425,15 @@ def analyze_directory(f, blacklist, same_fs):
                 log.info(f"[I] Skipping blaclisted folder: {dirpath}")
                 dirnames.clear()
                 continue
+            analyze_directory.dirs_checked += 1
             for filename in filenames:
                 fullname = os.path.join(dirpath, filename)
                 hits += process_file(fullname)
     elif os.path.isfile(f):
         hits += process_file(f)
     return hits
+
+analyze_directory.dirs_checked=0
 
 
 def get_ip():
@@ -450,8 +458,10 @@ def main():
                         help='Don\'t search directories containing these strings (multiple supported)', metavar='DIR')
     parser.add_argument('--same-fs', action="store_true",
                         help="Don't scan mounted volumens.")
-    parser.add_argument('--json-out', nargs='?',
-                        help="Save results to json file.", metavar='FILENAME')
+    parser.add_argument('--json-out', nargs='?', default=argparse.SUPPRESS,
+                        help="Save results to json file.", metavar='FILE')
+    parser.add_argument('--csv-out', nargs='?', default=argparse.SUPPRESS,
+                        help="Save results to csv file.", metavar='FILE')
     parser.add_argument('-d', '--debug', action="store_true",
                         help='Increase verbosity, mainly for debugging purposes.')
     parser.add_argument('folders', nargs='+',
@@ -467,16 +477,21 @@ def main():
     log.info(f"[I] Starting {__file__} ver. {VERSION}")
     log.info("[I] Parameters: " + " ".join(sys.argv))
     system, node, release, version, machine, processor = platform.uname()
-    hi = {'hostname': socket.gethostname(),
-          'fqdn': socket.getfqdn(),
-          'ip': get_ip(),
+    hostname = socket.gethostname()
+    ip = get_ip()
+    fqdn = socket.getfqdn()
+    host_info = {'hostname': hostname,
+          'fqdn': fqdn,
+          'ip': ip,
           'system': system,
           'release': release,
           'version': version,
           'machine': machine,
           'cpu': processor,
           }
-    log.info(f"[I] {str(hi).strip('{}')}")
+    log.info(f"[I] {str(host_info).strip('{}')}")
+    host_info['cmdline'] = " ".join(sys.argv)
+    host_info['starttime'] = time.strftime("%Y-%m-%d %H:%M:%S")
 
     # for fn in args.folders:
     #    if not os.path.exists(fn):
@@ -498,13 +513,36 @@ def main():
             hits += analyze_directory(f, args.exclude_dirs, args.same_fs)
 
     global found_items
-    if args.json_out:
-        with open(args.json_out, "w") as f:
-            json.dump(found_items, f, indent=2)
-        log.info(f"[I] Results saved into {args.json_out}")
+    if "json_out" in args:
+        if args.json_out:
+            fn = args.json_out
+        else:
+            fn = f"{hostname}_{ip}.json"
+        host_info["items"] = found_items
+        host_info['endtime'] = time.strftime("%Y-%m-%d %H:%M:%S")
+        host_info['files_checked'] = process_file.files_checked
+        host_info['folders_checked'] = analyze_directory.dirs_checked
+        with open(fn, "w") as f:
+            json.dump(host_info, f, indent=2)
+        log.info(f"[I] Results saved into {fn}")
+
+    if "csv_out" in args:
+        if args.csv_out:
+            fn = args.csv_out
+        else:
+            fn = f"{hostname}_{ip}.csv"
+        found_items_columns = ["hostname", "ip", "fqdn", "container", "status", "path", "message", "pom_version"]
+        with open(fn, 'w') as f:
+            writer = csv.DictWriter(f, fieldnames=found_items_columns)
+            writer.writeheader()
+            for row in [dict(item, hostname=hostname, ip=ip, fqdn=fqdn) for item in found_items]:
+                writer.writerow(row)
+        log.info(f"[I] Results saved into {fn}")
 
     log.info(
-        f"[I] Finished, found {hits} vulnerable or unsafe log4j instances.")
+        f"[I] Finished, scanned {process_file.files_checked} files in {analyze_directory.dirs_checked} folders.")
+    log.info(
+        f"[I] Found {hits} vulnerable or unsafe log4j instances.")
     if hits:
         sys.exit(2)
     else:
