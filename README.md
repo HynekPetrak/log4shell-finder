@@ -35,7 +35,6 @@ Maximum resident set size (kbytes): 37204
 Voluntary context switches: 588
 Involuntary context switches: 898
 File system inputs: 25896
-File system outputs: 80
 ```
 
 ### log4j-detector (https://github.com/mergebase/log4j-detector)
@@ -49,7 +48,6 @@ Maximum resident set size (kbytes): 277008
 Voluntary context switches: 10288
 Involuntary context switches: 8211
 File system inputs: 1521824
-File system outputs: 152
 ```
 
 ### log4j2-scan (https://github.com/logpresso/CVE-2021-44228-Scanner)
