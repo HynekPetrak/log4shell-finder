@@ -2,6 +2,8 @@
 
 Python port of https://github.com/mergebase/log4j-detector log4j-detector is copyright (c) 2021 - MergeBase Software Inc. https://mergebase.com/
 
+Motivation for porting to Python was to mainly to improve perfomance, memory consumption and code readability. See below section about [performance](#performance) comparism.
+
 Detects Log4J versions on your file-system within any application that are vulnerable to [CVE-2021-44228](https://mergebase.com/vulnerability/CVE-2021-44228/)  and [CVE-2021-45046](https://mergebase.com/vulnerability/CVE-2021-45046/). It is able to even find instances that are hidden several layers deep. Works on Linux, Windows, and Mac, and everywhere else Python runs, too!
 
 Currently reports `log4j-core` versions 2.12.2 and 2.17.0 as **SAFE**, 2.16.0 as **NOTOKAY** and all other versions as **VULNERABLE**
@@ -14,6 +16,40 @@ into [uber jars](https://mergebase.com/blog/software-composition-analysis-sca-vs
 exploded jar files just sitting uncompressed on the file-system (aka *.class).
 
 It can also handle shaded class files - extensions .esclazz (elastic) and .classdata (Azure).
+
+## Performance
+
+Performance measured on a home folder with 161729 files in 36494 folders.
+log4shell-finder **reduces runtime by 60%, memory consumption by 90% and file system utilization by 98%**.
+
+### log4shell-finder (this tool)
+```
+Command being timed: "./test_log4shell.py /home/hynek --exclude-dirs /mnt --same-fs --csv-out --json-out"
+User time (seconds): 16.41
+System time (seconds): 3.65
+Percent of CPU this job got: 66%
+Elapsed (wall clock) time (h:mm:ss or m:ss): 0:30.29
+Maximum resident set size (kbytes): 37204
+Voluntary context switches: 588
+Involuntary context switches: 898
+File system inputs: 25896
+File system outputs: 80
+```
+
+### log4j-detector (https://github.com/mergebase/log4j-detector)
+```
+Command being timed: "java -jar log4j-detector-2021.12.20.jar /home/hynek/"
+User time (seconds): 36.65
+System time (seconds): 7.69
+Percent of CPU this job got: 55%
+Elapsed (wall clock) time (h:mm:ss or m:ss): 1:20.27
+Maximum resident set size (kbytes): 277008
+Voluntary context switches: 10288
+Involuntary context switches: 8211
+File system inputs: 1521824
+File system outputs: 152
+```
+
 
 ## Changelog
 
