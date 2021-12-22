@@ -3,6 +3,7 @@
 Python port of https://github.com/mergebase/log4j-detector log4j-detector is copyright (c) 2021 - MergeBase Software Inc. https://mergebase.com/
 
 > *Motivation for porting to Python was to improve perfomance, reduce memory consumption and increase code readability. See below section about [performance](#performance) comparism.*
+> And it seems this is **the fastest scanning tool with lowest memory requirement** 
 
 Detects Log4J versions on your file-system within any application that are vulnerable to [CVE-2021-44228](https://mergebase.com/vulnerability/CVE-2021-44228/)  and [CVE-2021-45046](https://mergebase.com/vulnerability/CVE-2021-45046/). It is able to even find instances that are hidden several layers deep. Works on Linux, Windows, and Mac, and everywhere else Python runs, too!
 
@@ -48,6 +49,19 @@ Voluntary context switches: 10288
 Involuntary context switches: 8211
 File system inputs: 1521824
 File system outputs: 152
+```
+
+### log4j2-scan (https://github.com/logpresso/CVE-2021-44228-Scanner)
+```
+ Command being timed: "./log4j2-scan /home/hynek --scan-log4j1 --scan-zip"
+ User time (seconds): 22.80
+ System time (seconds): 4.79
+ Percent of CPU this job got: 39%
+ Elapsed (wall clock) time (h:mm:ss or m:ss): 1:09.35
+ Maximum resident set size (kbytes): 426808
+ Voluntary context switches: 19551
+ Involuntary context switches: 19800
+ File system inputs: 798528
 ```
 
 
