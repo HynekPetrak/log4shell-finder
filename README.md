@@ -53,6 +53,11 @@ File system outputs: 152
 
 ## Changelog
 
+### Version 1.9-20211222
+
+- added detection of 2.12.3 and 2.3.1
+- added option to disable default logging to file `--no-file-log`
+
 ### Version 1.8-20211222
 
 - added host information to the json file

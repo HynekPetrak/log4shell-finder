@@ -15,7 +15,7 @@ import zipfile
 from enum import Enum
 from shlex import shlex
 
-VERSION = "1.8-20211222"
+VERSION = "1.9-20211222"
 
 log_name = 'log4shell-finder.log'
 
@@ -46,7 +46,7 @@ log.addHandler(fh)
 log.addHandler(ch)
 
 CLASS_EXTS = (".class", ".esclazz", ".classdata")
-ZIP_EXTS = (".zip", ".jar", ".war", ".ear", ".aar", ".jpi", ".hpi")
+ZIP_EXTS = (".zip", ".jar", ".war", ".ear", ".aar", ".jpi", ".hpi", ".rar", ".nar")
 
 
 def get_class_names(base):
@@ -61,8 +61,9 @@ FILE_LOG4J_3 = get_class_names("core/filter")
 FILE_LOG4J_4 = get_class_names("core/layout")
 FILE_LOG4J_5 = get_class_names("core/loggercontext")
 FILE_LOG4J_2_10 = get_class_names("appender/nosql/nosqlappender")
-FILE_LOG4J_VULNERABLE = get_class_names("jndilookup")
-FILE_LOG4J_SAFE_CONDITION1 = get_class_names("jndimanager")
+FILE_LOG4J_JNDI_LOOKUP = get_class_names("jndilookup")
+FILE_LOG4J_JNDI_MANAGER = get_class_names("jndimanager")
+FILE_GONE_LOG4J_2_17 = get_class_names("core/util/setutils")
 
 ACTUAL_FILE_LOG4J_2 = "core/Appender.class"
 ACTUAL_FILE_LOG4J_3 = "core/Filter.class"
@@ -71,7 +72,10 @@ ACTUAL_FILE_LOG4J_5 = "core/LoggerContext.class"
 ACTUAL_FILE_LOG4J_2_10 = "core/appender/nosql/NoSqlAppender.class"
 ACTUAL_FILE_LOG4J_JNDI_LOOKUP = "core/lookup/JndiLookup.class"
 ACTUAL_FILE_LOG4J_JNDI_MANAGER = "core/net/JndiManager.class"
+ACTUAL_FILE_GONE_LOG4J_2_17 = "core/util/SetUtils.class"
 ACTUAL_FILE_LOG4J1_APPENDER = "net/JMSAppender.class"
+ACTUAL_FILE_LOG4J_POM = "META-INF/maven/org.apache.logging.log4j/log4j-core/pom.properties"
+
 
 # This occurs in "JndiManager.class" in 2.15.0
 IS_LOG4J_SAFE_2_15_0 = b"Invalid JNDI URI - {}"
@@ -84,6 +88,9 @@ INSIDE_LOG4J_2_17_0 = b"JNDI must be enabled by setting log4j2.enableJndiLookup=
 
 # This occurs in "JndiLookup.class" before 2.12.2
 IS_LOG4J_NOT_SAFE_2_12_2 = b"Error looking up JNDI resource [{}]."
+
+# This occurs in "JndiManager.class" in 2.3.1
+IS_LOG4J_SAFE_2_3_1 = b"Unsupported JNDI URI - {}"
 
 verbose = False
 debug = False
@@ -157,6 +164,7 @@ def scan_archive(f, path=""):
         isLog4j2_10 = False
         hasJndiLookup = False
         hasJndiManager = False
+        hasSetUtils = False
         isLog4J1_X = False
         isLog4J1_unsafe = False
         isLog4j2_15 = False
@@ -165,6 +173,8 @@ def scan_archive(f, path=""):
         isLog4j2_15_override = False
         isLog4j2_12_2 = False
         isLog4j2_12_2_override = False
+        isLog4j2_12_3 = False
+        isLog4j2_3_1 = False
         pom_path = None
 
         for fn in nl:
@@ -184,7 +194,7 @@ def scan_archive(f, path=""):
                 continue
 
             if fnl.endswith(CLASS_EXTS):
-                if fnl.endswith(FILE_LOG4J_VULNERABLE):
+                if fnl.endswith(FILE_LOG4J_JNDI_LOOKUP):
                     hasJndiLookup = True
                     with zf.open(fn, "r") as inner_class:
                         class_content = inner_class.read()
@@ -194,7 +204,7 @@ def scan_archive(f, path=""):
                             isLog4j2_12_2_override = True
                         else:
                             isLog4j2_12_2 = True
-                elif fnl.endswith(FILE_LOG4J_SAFE_CONDITION1):
+                elif fnl.endswith(FILE_LOG4J_JNDI_MANAGER):
                     hasJndiManager = True
                     with zf.open(fn, "r") as inner_class:
                         class_content = inner_class.read()
@@ -204,6 +214,11 @@ def scan_archive(f, path=""):
                                 isLog4j2_16 = True
                         else:
                             isLog4j2_15_override = True
+                            if class_content.find(IS_LOG4J_SAFE_2_3_1) >= 0:
+                                isLog4j2_3_1 = True
+
+                elif fnl.endswith(FILE_GONE_LOG4J_2_17):
+                    hasSetUtils = True
                 elif fnl.endswith(FILE_OLD_LOG4J):
                     isLog4J1_X = True
                 elif fnl.endswith(FILE_OLD_LOG4J_APPENDER):
@@ -241,6 +256,9 @@ def scan_archive(f, path=""):
                             isSafe = True
                             isLog4j_2_12_2 = (
                                 isLog4j2_12_2 and not isLog4j2_12_2_override)
+                            if isLog4j2_17 and hasSetUtils:
+                                isLog4j2_12_3 = True
+                                isLog4j2_17 = False
 
         if isLog4j:
             version = "2.x"
@@ -259,7 +277,7 @@ def scan_archive(f, path=""):
 
         if isLog4j:
             log.debug(
-                f"### isLog4j = {isLog4j}, isLog4j_2_10_0 = {isLog4j_2_10_0}, isLog4j_2_12_2 = {isLog4j_2_12_2}, isVulnerable = {isVulnerable}, isSafe = {isSafe},")
+                f"### isLog4j = {isLog4j}, isLog4j_2_10_0 = {isLog4j_2_10_0}, isLog4j_2_12_2 = {isLog4j_2_12_2}, isVulnerable = {isVulnerable}, isSafe = {isSafe}, isLog4j2_17 = {isLog4j2_17}, isLog4j2_12_3 = {isLog4j2_12_3}")
             if isLog4J1_X:
                 prefix = f"contains Log4J-1.x AND Log4J-{version}"
                 foundLog4j1 = true
@@ -269,7 +287,10 @@ def scan_archive(f, path=""):
             if isVulnerable:
                 if isLog4j_2_10_0:
                     if isSafe:
-                        if isLog4j2_17:
+                        if isLog4j2_12_3:
+                            buf = f"{prefix} == 2.12.3"
+                            status = Status.SAFE
+                        elif isLog4j2_17:
                             buf = f"{prefix} >= 2.17.0"
                             status = Status.SAFE
                         elif isLog4j2_16:
@@ -277,18 +298,21 @@ def scan_archive(f, path=""):
                             status = Status.NOTOKAY
                         elif isLog4j_2_12_2:
                             buf = f"{prefix} == 2.12.2"
-                            status = Status.SAFE
+                            status = Status.NOTOKAY
                         else:
                             buf = f"{prefix} == 2.15.0"
                             status = Status.VULNERABLE
                     else:
                         buf = f"{prefix} >= 2.10.0"
                         status = Status.VULNERABLE
+                elif isLog4j2_3_1:
+                    buf = f"{prefix} == 2.3.1"
+                    status = Status.SAFE
                 else:
                     buf = f"{prefix} >= 2.0-beta9 (< 2.10.0)"
                     status = Status.VULNERABLE
             else:
-                buf = f"{prefix} <= 2.0-beta8 (JndiLookup.class not present)"
+                buf = f"{prefix} <= 2.0-beta8 or JndiLookup.class has been removed"
                 status = Status.MAYBESAFE
             log_item(path, status, buf, version, Container.PACKAGE)
             if not isSafe:
@@ -314,11 +338,14 @@ def scan_archive(f, path=""):
 
     return 0
 
-def check_path_exists(path):
+def check_path_exists(path, mangle=True):
+    if not mangle:
+        return os.path.exists(path)
+
     for ext in CLASS_EXTS:
         if os.path.exists(path.with_suffix(ext)):
-            return 1
-    return 0
+            return True
+    return False
 
 
 def check_class(f):
@@ -339,21 +366,33 @@ def check_class(f):
         return 0
 
     log.debug(f"[I] Match on {f}")
-    msg = f"contains Log4J-2.x"
+    version = "2.x"
+
+    pom_path = parent.parent.parent.parent.parent.parent.joinpath(ACTUAL_FILE_LOG4J_POM)
+
+    if check_path_exists(pom_path, mangle=False):
+        with open(pom_path, "r") as inf:
+            content = inf.read()
+            kv = parse_kv_pairs(content)
+        log.debug(f"pom.properties found at {pom_path}, {kv}")
+        if "version" in kv:
+            version = kv['version']
+
+    msg = f"contains Log4J-{version}"
 
     for fn in [ACTUAL_FILE_LOG4J_2, ACTUAL_FILE_LOG4J_3, ACTUAL_FILE_LOG4J_4,
                ACTUAL_FILE_LOG4J_5, ACTUAL_FILE_LOG4J_JNDI_LOOKUP]:
         if not check_path_exists(parent.parent.joinpath(fn)):
             log_item(parent, Status.MAYBESAFE,
-                f"{msg} <= 2.0-beta8 ({fn} not present)",
-                container=Container.FOLDER)
+                f"{msg} <= 2.0-beta8 or {fn} has been removed",
+                version, container=Container.FOLDER)
             return 0
 
     isVulnerable = True
     if not check_path_exists(parent.parent.joinpath(ACTUAL_FILE_LOG4J_2_10)):
         log_item(parent, Status.VULNERABLE,
                 f"{msg} >= 2.0-beta9 (< 2.10.0)",
-                container=Container.FOLDER)
+                version, container=Container.FOLDER)
         return 1
     else:
         # Check for 2.12.2...
@@ -364,31 +403,44 @@ def check_class(f):
                     if mm.find(IS_LOG4J_NOT_SAFE_2_12_2) == -1:
                         log_item(parent, Status.SAFE,
                                 f"{msg} == 2.12.2",
-                                container=Container.FOLDER)
+                                version, container=Container.FOLDER)
                         return 0
                     if mm.find(INSIDE_LOG4J_2_17_0) >= 0:
-                        log_item(parent, Status.SAFE,
-                                f"{msg} >= 2.17.0",
-                                container=Container.FOLDER)
-                        return 0
+                        fn = parent.parent.joinpath(ACTUAL_FILE_GONE_LOG4J_2_17)
+                        if not check_path_exists(fn):
+                            log_item(parent, Status.SAFE,
+                                    f"{msg} >= 2.17.0",
+                                    version, container=Container.FOLDER)
+                            return 0
+                        else:
+                            log_item(parent, Status.SAFE,
+                                    f"{msg} >= 2.12.3",
+                                    version, container=Container.FOLDER)
+                            return 0
+
         fn = parent.parent.joinpath(ACTUAL_FILE_LOG4J_JNDI_MANAGER)
         if check_path_exists(fn):
             with open(fn, "rb") as f:
                 with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ) as mm:
+                    if mm.find(IS_LOG4J_SAFE_2_3_1) >= 0:
+                        log_item(parent, Status.SAFE,
+                                f"{msg} == 2.3.1",
+                                version, container=Container.FOLDER)
+                        return 0
                     if mm.find(IS_LOG4J_SAFE_2_16_0) >= 0:
                         log_item(parent, Status.NOTOKAY,
                                 f"{msg} == 2.16.0",
-                                container=Container.FOLDER)
+                                version, container=Container.FOLDER)
                         return 0
                     elif mm.find(IS_LOG4J_SAFE_2_15_0) >= 0:
                         log_item(parent, Status.VULNERABLE,
                                 f"{msg} == 2.15.0",
-                                container=Container.FOLDER)
+                                version, container=Container.FOLDER)
                         return 1
 
     log_item(parent, Status.VULNERABLE,
             f"{msg} >= 2.10.0",
-            container=Container.FOLDER)
+            version, container=Container.FOLDER)
 
     return 1
 
@@ -456,14 +508,17 @@ def main():
         '\tOn Windows "%(prog)s c:\\ d:\\"\n\tOn Linux "%(prog)s /"')
     parser.add_argument('--exclude-dirs', nargs='+', default=[],
                         help='Don\'t search directories containing these strings (multiple supported)', metavar='DIR')
-    parser.add_argument('--same-fs', action="store_true",
+    parser.add_argument('-s', '--same-fs', action="store_true",
                         help="Don't scan mounted volumens.")
-    parser.add_argument('--json-out', nargs='?', default=argparse.SUPPRESS,
+    parser.add_argument('-j', '--json-out', nargs='?', default=argparse.SUPPRESS,
                         help="Save results to json file.", metavar='FILE')
-    parser.add_argument('--csv-out', nargs='?', default=argparse.SUPPRESS,
+    parser.add_argument('-c', '--csv-out', nargs='?', default=argparse.SUPPRESS,
                         help="Save results to csv file.", metavar='FILE')
+    parser.add_argument('-n', '--no-file-log', action="store_true",
+                        help=f'By default a {log_name} is being created, this flag disbles it.')
     parser.add_argument('-d', '--debug', action="store_true",
                         help='Increase verbosity, mainly for debugging purposes.')
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + VERSION)
     parser.add_argument('folders', nargs='+',
                         help='List of folders or files to scan. Use "-" to read list of files from stdin.')
 
@@ -471,6 +526,9 @@ def main():
     if args.debug:
         fh.setLevel(logging.DEBUG)
         ch.setLevel(logging.DEBUG)
+    if args.no_file_log:
+        fh.disable()
+
 
     args.exclude_dirs = [s.lower() for s in args.exclude_dirs]
 
