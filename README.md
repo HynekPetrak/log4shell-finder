@@ -19,6 +19,8 @@ exploded jar files just sitting uncompressed on the file-system (aka *.class).
 
 It can also handle shaded class files - extensions .esclazz (elastic) and .classdata (Azure).
 
+Java archive extensions searched: `.zip`, `.jar`, `.war`, `.ear`, `.aar`, `.jpi`, `.hpi`, `.rar`, `.nar`.
+
 ## Performance
 
 Performance measured on a home folder with 161729 files in 36494 folders.
