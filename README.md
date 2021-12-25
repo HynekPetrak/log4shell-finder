@@ -26,6 +26,11 @@ It can also handle shaded class files - extensions .esclazz (elastic) and .class
 
 Java archive extensions searched: `.zip`, `.jar`, `.war`, `.ear`, `.aar`, `.jpi`, `.hpi`, `.rar`, `.nar`.
 
+Argument `--fix` attempt to rename instances of `JndiLookup.class` into `JndiLookup.vulne`, thus preventing the class
+from loading. Within Java archives it's done via in place rename, does not require re-zipping of the archive and is 
+instant fast.
+
+
 ## Performance
 
 Performance measured on a home folder with 161729 files in 36494 folders.
