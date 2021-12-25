@@ -53,6 +53,12 @@ File system outputs: 152
 
 ## Changelog
 
+### Version 1.11-20211225
+
+- added `--fix` parameter with attempt to fix the vulnerability by renaming `JndiLookup.class` to `JndiLookup.vulne`. 
+  At the moment it can handle `.class` files on disk and within 1st level archives. 
+  Class cannot be renamed in archives embeded in other archives (nested). 
+  
 ### Version 1.10-20211222
 
 - added detection of 2.12.3 and 2.3.1

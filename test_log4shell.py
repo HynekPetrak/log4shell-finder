@@ -15,7 +15,7 @@ import zipfile
 from enum import Enum
 from shlex import shlex
 
-VERSION = "1.10-20211222"
+VERSION = "1.11-20211225"
 
 log_name = 'log4shell-finder.log'
 
@@ -40,6 +40,9 @@ formatter = logging.Formatter(
     "[%(asctime)s] [%(levelname)s] %(message)s"
 )
 fh.setFormatter(formatter)
+formatter = logging.Formatter(
+    "%(message)s"
+)
 ch.setFormatter(formatter)
 # add the handlers to the log
 log.addHandler(fh)
@@ -106,6 +109,7 @@ class FileType(Enum):
 class Status(Enum):
     SAFE = "[-] [SAFE]"
     VULNERABLE = "[+] [VULNERABLE]"
+    FIXED = "[+] [FIXED]"
     MAYBESAFE = "[*] [MAYBESAFE]"
     NOTOKAY = "[+] [NOTOKAY]"
     OLD = "[*] [OLD]"
@@ -155,9 +159,10 @@ def parse_kv_pairs(text, item_sep=None, value_sep=".=-"):
     return dict(word.split("=", maxsplit=1) for word in lexer)
 
 
-def scan_archive(f, path=""):
+def scan_archive(f, path, fix=False):
     log.debug(f"Scanning {path}")
-    with zipfile.ZipFile(f) as zf:
+    hits = 0
+    with zipfile.ZipFile(f, mode="r") as zf:
         nl = zf.namelist()
 
         log4jProbe = [False] * 5
@@ -165,8 +170,8 @@ def scan_archive(f, path=""):
         hasJndiLookup = False
         hasJndiManager = False
         hasSetUtils = False
-        isLog4J1_X = False
-        isLog4J1_unsafe = False
+        isLog4j1_x = False
+        isLog4j1_unsafe = False
         isLog4j2_15 = False
         isLog4j2_16 = False
         isLog4j2_17 = False
@@ -176,13 +181,14 @@ def scan_archive(f, path=""):
         isLog4j2_12_3 = False
         isLog4j2_3_1 = False
         pom_path = None
+        jndilookup_path = None
 
         for fn in nl:
             fnl = fn.lower()
 
             if fnl.endswith(ZIP_EXTS):
                 with zf.open(fn, "r") as inner_zip:
-                    scan_archive(inner_zip, path=path+":"+fn)
+                    hits += scan_archive(inner_zip, path+":"+fn, fix)
                     continue
 
             if fnl.endswith("log4j-core/pom.properties"):
@@ -195,6 +201,7 @@ def scan_archive(f, path=""):
 
             if fnl.endswith(CLASS_EXTS):
                 if fnl.endswith(FILE_LOG4J_JNDI_LOOKUP):
+                    jndilookup_path = pathlib.PurePosixPath(fn)
                     hasJndiLookup = True
                     with zf.open(fn, "r") as inner_class:
                         class_content = inner_class.read()
@@ -220,9 +227,9 @@ def scan_archive(f, path=""):
                 elif fnl.endswith(FILE_GONE_LOG4J_2_17):
                     hasSetUtils = True
                 elif fnl.endswith(FILE_OLD_LOG4J):
-                    isLog4J1_X = True
+                    isLog4j1_x = True
                 elif fnl.endswith(FILE_OLD_LOG4J_APPENDER):
-                    isLog4J1_unsafe = True
+                    isLog4j1_unsafe = True
                 elif fnl.endswith(FILE_LOG4J_1):
                     log4jProbe[0] = True
                 elif fnl.endswith(FILE_LOG4J_2):
@@ -236,16 +243,16 @@ def scan_archive(f, path=""):
                 elif fnl.endswith(FILE_LOG4J_2_10):
                     isLog4j2_10 = True
 
-        log.debug(f"###  log4jProbe = {log4jProbe}, isLog4j2_10 = {isLog4j2_10}, hasJndiLookup = {hasJndiLookup}, hasJndiManager = {hasJndiManager}, isLog4J1_X = {isLog4J1_X}, isLog4j2_15 = {isLog4j2_15}, isLog4j2_16 = {isLog4j2_16}, isLog4j2_15_override = {isLog4j2_15_override}, isLog4j2_12_2 = {isLog4j2_12_2}, isLog4j2_12_2_override = {isLog4j2_12_2_override}, isLog4j2_17 = {isLog4j2_17} ")
+        log.debug(f"###  log4jProbe = {log4jProbe}, isLog4j2_10 = {isLog4j2_10}, hasJndiLookup = {hasJndiLookup}, hasJndiManager = {hasJndiManager}, isLog4j1_x = {isLog4j1_x}, isLog4j2_15 = {isLog4j2_15}, isLog4j2_16 = {isLog4j2_16}, isLog4j2_15_override = {isLog4j2_15_override}, isLog4j2_12_2 = {isLog4j2_12_2}, isLog4j2_12_2_override = {isLog4j2_12_2_override}, isLog4j2_17 = {isLog4j2_17} ")
 
-        isLog4j = False
+        isLog4j2 = False
         isLog4j_2_10_0 = False
         isLog4j_2_12_2 = False
         isVulnerable = False
-        isSafe = False
+        isRecent = False
         if (log4jProbe[0] and log4jProbe[1] and log4jProbe[2] and
                 log4jProbe[3] and log4jProbe[4]):
-            isLog4j = True
+            isLog4j2 = True
             if hasJndiLookup:
                 isVulnerable = True
                 if isLog4j2_10:
@@ -253,16 +260,16 @@ def scan_archive(f, path=""):
                     if hasJndiManager:
                         if (isLog4j2_17 or (isLog4j2_15 and not isLog4j2_15_override) or
                                 (isLog4j2_12_2 and not isLog4j2_12_2_override)):
-                            isSafe = True
+                            isRecent = True
                             isLog4j_2_12_2 = (
                                 isLog4j2_12_2 and not isLog4j2_12_2_override)
                             if isLog4j2_17 and hasSetUtils:
                                 isLog4j2_12_3 = True
                                 isLog4j2_17 = False
 
-        if isLog4j:
+        if isLog4j2:
             version = "2.x"
-        elif isLog4J1_X:
+        elif isLog4j1_x:
             version = "1.x"
         else:
             version = None
@@ -275,82 +282,125 @@ def scan_archive(f, path=""):
             if "version" in kv:
                 version = kv['version']
 
-        if isLog4j:
-            log.debug(
-                f"### isLog4j = {isLog4j}, isLog4j_2_10_0 = {isLog4j_2_10_0}, isLog4j_2_12_2 = {isLog4j_2_12_2}, isVulnerable = {isVulnerable}, isSafe = {isSafe}, isLog4j2_17 = {isLog4j2_17}, isLog4j2_12_3 = {isLog4j2_12_3}")
-            if isLog4J1_X:
-                prefix = f"contains Log4J-1.x AND Log4J-{version}"
-                foundLog4j1 = true
-            else:
-                prefix = f"contains Log4J-{version}"
+    if isLog4j2:
+        log.debug(
+            f"### isLog4j2 = {isLog4j2}, isLog4j_2_10_0 = {isLog4j_2_10_0}, isLog4j_2_12_2 = {isLog4j_2_12_2}, isVulnerable = {isVulnerable}, isRecent = {isRecent}, isLog4j2_17 = {isLog4j2_17}, isLog4j2_12_3 = {isLog4j2_12_3}")
+        if isLog4j1_x:
+            prefix = f"contains Log4J-1.x AND Log4J-{version}"
+            foundLog4j1 = true
+        else:
+            prefix = f"contains Log4J-{version}"
 
-            if isVulnerable:
-                if isLog4j_2_10_0:
-                    if isSafe:
-                        if isLog4j2_12_3:
-                            buf = f"{prefix} == 2.12.3"
-                            status = Status.SAFE
-                        elif isLog4j2_17:
-                            buf = f"{prefix} >= 2.17.0"
-                            status = Status.SAFE
-                        elif isLog4j2_16:
-                            buf = f"{prefix} == 2.16.0"
-                            status = Status.NOTOKAY
-                        elif isLog4j_2_12_2:
-                            buf = f"{prefix} == 2.12.2"
-                            status = Status.NOTOKAY
-                        else:
-                            buf = f"{prefix} == 2.15.0"
-                            status = Status.VULNERABLE
+        if isVulnerable:
+            if isLog4j_2_10_0:
+                if isRecent:
+                    if isLog4j2_12_3:
+                        buf = f"{prefix} == 2.12.3"
+                        status = Status.SAFE
+                    elif isLog4j2_17:
+                        buf = f"{prefix} >= 2.17.0"
+                        status = Status.SAFE
+                    elif isLog4j2_16:
+                        buf = f"{prefix} == 2.16.0"
+                        status = Status.NOTOKAY
+                    elif isLog4j_2_12_2:
+                        buf = f"{prefix} == 2.12.2"
+                        status = Status.NOTOKAY
                     else:
-                        buf = f"{prefix} >= 2.10.0"
+                        buf = f"{prefix} == 2.15.0"
                         status = Status.VULNERABLE
-                elif isLog4j2_3_1:
-                    buf = f"{prefix} == 2.3.1"
-                    status = Status.SAFE
                 else:
-                    buf = f"{prefix} >= 2.0-beta9 (< 2.10.0)"
+                    buf = f"{prefix} >= 2.10.0"
                     status = Status.VULNERABLE
+            elif isLog4j2_3_1:
+                buf = f"{prefix} == 2.3.1"
+                status = Status.SAFE
             else:
-                buf = f"{prefix} <= 2.0-beta8 or JndiLookup.class has been removed"
-                status = Status.MAYBESAFE
-            log_item(path, status, buf, version, Container.PACKAGE)
-            if not isSafe:
-                return 1
+                buf = f"{prefix} >= 2.0-beta9 (< 2.10.0)"
+                status = Status.VULNERABLE
+        else:
+            buf = f"{prefix} <= 2.0-beta8 or JndiLookup.class has been removed"
+            status = Status.MAYBESAFE
+        
+        fix_msg = ""
+        if status == Status.VULNERABLE and fix:
+            if not jndilookup_path:
+                log.info(f"Cannot fix {path}, JndiLookup.class not found")
+            elif ":" in path:
+                log.info(f"Cannot fix {path}, nested archive")
             else:
-                return 0
-        elif isLog4J1_X:
-            if isLog4J1_unsafe:
-                log_item(path, Status.OLDUNSAFE,
-                        f"contains Log4J-{version} <= 1.2.17, JMSAppender.class found",
-                        version, Container.PACKAGE)
-                return 1
-            else:
-                log_item(path, Status.OLDSAFE,
-                        f"contains Log4J-{version} <= 1.2.17, JMSAppender.class not found",
-                        version, Container.PACKAGE)
-                return 0
-        elif version:
-            log_item(path, Status.STRANGE,
-                     f"contains pom.properties for Log4J-{version}, but classes missing",
-                     version, Container.PACKAGE)
-            return 0
+                suffix_len = len(jndilookup_path.suffix)
+                if suffix_len < 3:
+                    log.info(f"Cannot fix {path}, suffix of {jndilookup_path} too short - {suffix_len}")
+                else:
+                    suffix_replacement = ".vulnerable"
+                    if suffix_len > len(suffix_replacement):
+                        suffix_replacement += "x" * (suffix_len - len(suffix_replacement))
+                    new_fn = jndilookup_path.with_suffix(".vulnerable"[:suffix_len])
+                    fix_msg = f", fixing, {jndilookup_path} has been renamed to {new_fn.name}"
+                    with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ|mmap.PROT_WRITE) as mm:
+                        bstr_from = str(jndilookup_path).encode('utf-8')
+                        bstr_to = str(new_fn).encode('utf-8')
+                        where = 0
+                        while True:
+                            where = mm.find(bstr_from, where + 1)
+                            if where < 0:
+                                break
+                            mm.write(bstr_to)
+                    status = Status.FIXED
 
-    return 0
+        log_item(path, status, buf + fix_msg, version, Container.PACKAGE)
+
+        if status == status.VULNERABLE:
+            return hits + 1
+        else:
+            return hits
+    elif isLog4j1_x:
+        if isLog4j1_unsafe:
+            log_item(path, Status.OLDUNSAFE,
+                    f"contains Log4J-{version} <= 1.2.17, JMSAppender.class found",
+                    version, Container.PACKAGE)
+            return hits
+        else:
+            log_item(path, Status.OLDSAFE,
+                    f"contains Log4J-{version} <= 1.2.17, JMSAppender.class not found",
+                    version, Container.PACKAGE)
+            return hits
+    elif version:
+        log_item(path, Status.STRANGE,
+                 f"contains pom.properties for Log4J-{version}, but classes missing",
+                 version, Container.PACKAGE)
+        return hits
+
+    return hits
 
 def check_path_exists(path, mangle=True):
     if not mangle:
-        return os.path.exists(path)
+        if os.path.exists(path):
+            return path
+        else:
+            return False
 
     for ext in CLASS_EXTS:
-        if os.path.exists(path.with_suffix(ext)):
-            return True
+        p = path.with_suffix(ext)
+        if os.path.exists(p):
+            return p
     return False
 
 
-def check_class(f):
-    parent = pathlib.PurePath(f).parent
-    if f.lower().endswith(FILE_OLD_LOG4J):
+def fix_jndilookup_class(fn):
+    try:
+        new_fn = fn.with_suffix('.vulnerable')
+        os.rename(fn, new_fn)
+        return f", fixing, {fn} has been renamed to {new_fn.name}"
+    except Exception as ex:
+        log.error(f"Error renaming file {jndilookup_path}: {ex}")
+    return ""
+
+
+def check_class(class_file, fix=False):
+    parent = pathlib.PurePath(class_file).parent
+    if class_file.lower().endswith(FILE_OLD_LOG4J):
         if check_path_exists(parent.joinpath(ACTUAL_FILE_LOG4J1_APPENDER)):
             log_item(parent, Status.OLDUNSAFE,
                      f"contains Log4J-1.x <= 1.2.17, JMSAppender.class found",
@@ -362,10 +412,10 @@ def check_class(f):
                      container=Container.FOLDER)
             return 0
 
-    if not f.lower().endswith(FILE_LOG4J_1):
+    if not class_file.lower().endswith(FILE_LOG4J_1):
         return 0
 
-    log.debug(f"[I] Match on {f}")
+    log.debug(f"[I] Match on {class_file}")
     version = "2.x"
 
     pom_path = parent.parent.parent.parent.parent.parent.joinpath(ACTUAL_FILE_LOG4J_POM)
@@ -381,17 +431,41 @@ def check_class(f):
     msg = f"contains Log4J-{version}"
 
     for fn in [ACTUAL_FILE_LOG4J_2, ACTUAL_FILE_LOG4J_3, ACTUAL_FILE_LOG4J_4,
-               ACTUAL_FILE_LOG4J_5, ACTUAL_FILE_LOG4J_JNDI_LOOKUP]:
+               ACTUAL_FILE_LOG4J_5]:
         if not check_path_exists(parent.parent.joinpath(fn)):
             log_item(parent, Status.MAYBESAFE,
                 f"{msg} <= 2.0-beta8 or {fn} has been removed",
                 version, container=Container.FOLDER)
             return 0
+    
+    fn = ACTUAL_FILE_LOG4J_JNDI_LOOKUP
+    jndilookup_path = check_path_exists(parent.parent.joinpath(fn))
+    if not jndilookup_path:
+        log_item(parent, Status.SAFE,
+            f"{msg} <= 2.0-beta8 or {fn} has been removed",
+            version, container=Container.FOLDER)
+        return 0
 
     isVulnerable = True
+    fix_msg = ""
     if not check_path_exists(parent.parent.joinpath(ACTUAL_FILE_LOG4J_2_10)):
-        log_item(parent, Status.VULNERABLE,
-                f"{msg} >= 2.0-beta9 (< 2.10.0)",
+        fn = parent.parent.joinpath(ACTUAL_FILE_LOG4J_JNDI_MANAGER)
+        if check_path_exists(fn):
+            with open(fn, "rb") as f:
+                with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ) as mm:
+                    if mm.find(IS_LOG4J_SAFE_2_3_1) >= 0:
+                        log_item(parent, Status.SAFE,
+                                f"{msg} == 2.3.1",
+                                version, container=Container.FOLDER)
+                        return 0
+
+        status = Status.VULNERABLE
+        if fix:
+            fix_msg = fix_jndilookup_class(jndilookup_path)
+            if fix_msg:
+                status = Status.FIXED
+        log_item(parent, status,
+                f"{msg} >= 2.0-beta9 (< 2.10.0)" + fix_msg,
                 version, container=Container.FOLDER)
         return 1
     else:
@@ -422,30 +496,35 @@ def check_class(f):
         if check_path_exists(fn):
             with open(fn, "rb") as f:
                 with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ) as mm:
-                    if mm.find(IS_LOG4J_SAFE_2_3_1) >= 0:
-                        log_item(parent, Status.SAFE,
-                                f"{msg} == 2.3.1",
-                                version, container=Container.FOLDER)
-                        return 0
                     if mm.find(IS_LOG4J_SAFE_2_16_0) >= 0:
                         log_item(parent, Status.NOTOKAY,
                                 f"{msg} == 2.16.0",
                                 version, container=Container.FOLDER)
                         return 0
                     elif mm.find(IS_LOG4J_SAFE_2_15_0) >= 0:
-                        log_item(parent, Status.VULNERABLE,
-                                f"{msg} == 2.15.0",
+                        status = Status.VULNERABLE
+                        if fix:
+                            fix_msg = fix_jndilookup_class(jndilookup_path)
+                            if fix_msg:
+                                status = Status.FIXED
+                        log_item(parent, status,
+                                f"{msg} == 2.15.0" + fix_msg,
                                 version, container=Container.FOLDER)
                         return 1
 
-    log_item(parent, Status.VULNERABLE,
-            f"{msg} >= 2.10.0",
+    status = Status.VULNERABLE
+    if fix:
+        fix_msg = fix_jndilookup_class(jndilookup_path)
+        if fix_msg:
+            status = Status.FIXED
+    log_item(parent, status,
+            f"{msg} >= 2.10.0" + fix_msg,
             version, container=Container.FOLDER)
 
     return 1
 
 
-def process_file(filename):
+def process_file(filename, fix):
     hits = 0
     process_file.files_checked += 1
     try:
@@ -453,10 +532,10 @@ def process_file(filename):
         if ft == FileType.OTHER:
             return 0
         elif ft == FileType.CLASS:
-            hits += check_class(filename)
+            hits += check_class(filename, fix)
         elif ft == FileType.ZIP:
-            with open(filename, "rb") as f:
-                hits += scan_archive(f, filename)
+            with open(filename, "r+b") as f:
+                hits += scan_archive(f, filename, fix)
     except Exception as ex:
         log.error(f"[E] Error processing {filename}: {ex}")
     return hits
@@ -464,7 +543,7 @@ def process_file(filename):
 process_file.files_checked=0
 
 
-def analyze_directory(f, blacklist, same_fs):
+def analyze_directory(f, blacklist, same_fs, fix):
     hits = 0
     f = os.path.realpath(f)
     if os.path.isdir(f):
@@ -480,9 +559,9 @@ def analyze_directory(f, blacklist, same_fs):
             analyze_directory.dirs_checked += 1
             for filename in filenames:
                 fullname = os.path.join(dirpath, filename)
-                hits += process_file(fullname)
+                hits += process_file(fullname, fix)
     elif os.path.isfile(f):
-        hits += process_file(f)
+        hits += process_file(f, fix)
     return hits
 
 analyze_directory.dirs_checked=0
@@ -514,6 +593,8 @@ def main():
                         help="Save results to json file.", metavar='FILE')
     parser.add_argument('-c', '--csv-out', nargs='?', default=argparse.SUPPRESS,
                         help="Save results to csv file.", metavar='FILE')
+    parser.add_argument('-f', '--fix', action="store_true",
+                        help=f'Fix vulnerable by renaming JndiLookup.class into JndiLookup.vulne.')
     parser.add_argument('-n', '--no-file-log', action="store_true",
                         help=f'By default a {log_name} is being created, this flag disbles it.')
     parser.add_argument('-d', '--debug', action="store_true",
@@ -566,9 +647,9 @@ def main():
         if f == "-":
             for l in sys.stdin:
                 hits += analyze_directory(l.rstrip("\r\n"),
-                                          args.exclude_dirs, args.same_fs)
+                                          args.exclude_dirs, args.same_fs, args.fix)
         else:
-            hits += analyze_directory(f, args.exclude_dirs, args.same_fs)
+            hits += analyze_directory(f, args.exclude_dirs, args.same_fs, args.fix)
 
     global found_items
     if "json_out" in args:
