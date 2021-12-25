@@ -15,7 +15,7 @@ import zipfile
 from enum import Enum
 from shlex import shlex
 
-VERSION = "1.11-20211225"
+VERSION = "1.12-20211225"
 
 log_name = 'log4shell-finder.log'
 
@@ -475,7 +475,7 @@ def check_class(class_file, fix=False):
             with open(fn, "rb") as f:
                 with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ) as mm:
                     if mm.find(IS_LOG4J_NOT_SAFE_2_12_2) == -1:
-                        log_item(parent, Status.SAFE,
+                        log_item(parent, Status.NOTOKAY,
                                 f"{msg} == 2.12.2",
                                 version, container=Container.FOLDER)
                         return 0
