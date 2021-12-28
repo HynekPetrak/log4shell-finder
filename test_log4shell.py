@@ -15,7 +15,7 @@ import zipfile
 from enum import Enum
 from shlex import shlex
 
-VERSION = "1.12-20211225"
+VERSION = "1.12-20211228"
 
 log_name = 'log4shell-finder.log'
 
@@ -49,7 +49,9 @@ log.addHandler(fh)
 log.addHandler(ch)
 
 CLASS_EXTS = (".class", ".esclazz", ".classdata")
-ZIP_EXTS = (".zip", ".jar", ".war", ".ear", ".aar", ".jpi", ".hpi", ".rar", ".nar")
+ZIP_EXTS = (".zip", ".jar", ".war", ".ear", ".aar", ".jpi",
+        ".hpi", ".rar", ".nar", ".wab", ".eba", ".ejb", ".sar",
+        ".apk", ".par", ".kar", )
 
 
 def get_class_names(base):
@@ -325,13 +327,13 @@ def scan_archive(f, path, fix=False):
         fix_msg = ""
         if status == Status.VULNERABLE and fix:
             if not jndilookup_path:
-                log.info(f"Cannot fix {path}, JndiLookup.class not found")
+                log.info(f"[W] Cannot fix {path}, JndiLookup.class not found")
             elif ":" in path:
-                log.info(f"Cannot fix {path}, nested archive")
+                log.info(f"[W] Cannot fix {path}, nested archive")
             else:
                 suffix_len = len(jndilookup_path.suffix)
                 if suffix_len < 3:
-                    log.info(f"Cannot fix {path}, suffix of {jndilookup_path} too short - {suffix_len}")
+                    log.info(f"[W] Cannot fix {path}, suffix of {jndilookup_path} too short - {suffix_len}")
                 else:
                     suffix_replacement = ".vulnerable"
                     if suffix_len > len(suffix_replacement):
@@ -342,11 +344,18 @@ def scan_archive(f, path, fix=False):
                         bstr_from = str(jndilookup_path).encode('utf-8')
                         bstr_to = str(new_fn).encode('utf-8')
                         where = 0
+                        replacement_count = 0
                         while True:
                             where = mm.find(bstr_from, where + 1)
                             if where < 0:
                                 break
+                            mm.seek(where)
                             mm.write(bstr_to)
+                            replacement_count += 1
+                        if replacement_count:
+                            mm.flush()
+                        mm.close()
+
                     status = Status.FIXED
 
         log_item(path, status, buf + fix_msg, version, Container.PACKAGE)
@@ -534,7 +543,7 @@ def process_file(filename, fix):
         elif ft == FileType.CLASS:
             hits += check_class(filename, fix)
         elif ft == FileType.ZIP:
-            with open(filename, "r+b") as f:
+            with open(filename, "r+b" if fix else "rb") as f:
                 hits += scan_archive(f, filename, fix)
     except Exception as ex:
         log.error(f"[E] Error processing {filename}: {ex}")

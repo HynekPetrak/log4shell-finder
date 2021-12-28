@@ -24,7 +24,8 @@ exploded jar files just sitting uncompressed on the file-system (aka *.class).
 
 It can also handle shaded class files - extensions .esclazz (elastic) and .classdata (Azure).
 
-Java archive extensions searched: `.zip`, `.jar`, `.war`, `.ear`, `.aar`, `.jpi`, `.hpi`, `.rar`, `.nar`.
+Java archive extensions searched: `.zip`, `.jar`, `.war`, `.ear`, `.aar`, `.jpi`,
+`.hpi`, `.rar`, `.nar`, `.wab`, `.eba`, `.ejb`, `.sar`, `.apk`, `.par`, `.kar`
 
 Argument `--fix` attempts to rename instances of `JndiLookup.class` into `JndiLookup.vulne`, thus preventing the class
 from loading. Within Java archives it's done via in place rename, does not require re-zipping of the archive and is 
@@ -77,6 +78,11 @@ File system inputs: 1521824
 
 
 ## Changelog
+
+### Version 1.12-20211225
+
+- Added additional possible "JAR" file extensions.
+- Fixed bug: `--fix` command could corrupt `.jar` archives. 
 
 ### Version 1.11-20211225
 
