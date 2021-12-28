@@ -79,12 +79,12 @@ File system inputs: 1521824
 
 ## Changelog
 
-### Version 1.13-20211225
+### Version 1.13-20211228
 
 - Added additional possible "JAR" file extensions.
 - Fixed bug: `--fix` command could corrupt `.jar` archives. 
 
-### Version 1.13-20211225 (DO NOT USE)
+### Version 1.12-20211228 (DO NOT USE)
 
 - minor fix: status for 2.12.2 as `NOTOKAY`
 
