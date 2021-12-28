@@ -79,12 +79,16 @@ File system inputs: 1521824
 
 ## Changelog
 
-### Version 1.12-20211225
+### Version 1.13-20211225
 
 - Added additional possible "JAR" file extensions.
 - Fixed bug: `--fix` command could corrupt `.jar` archives. 
 
-### Version 1.11-20211225
+### Version 1.13-20211225 (DO NOT USE)
+
+- minor fix: status for 2.12.2 as `NOTOKAY`
+
+### Version 1.11-20211225 (DO NOT USE)
 
 - added `--fix` parameter with attempt to fix the vulnerability by renaming `JndiLookup.class` to `JndiLookup.vulne`. 
   At the moment it can handle `.class` files on disk and within 1st level archives. 
