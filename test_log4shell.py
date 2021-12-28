@@ -15,7 +15,7 @@ import zipfile
 from enum import Enum
 from shlex import shlex
 
-VERSION = "1.12-20211228"
+VERSION = "1.13-20211228"
 
 log_name = 'log4shell-finder.log'
 
