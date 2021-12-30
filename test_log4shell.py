@@ -15,7 +15,7 @@ import zipfile
 from enum import Enum
 from shlex import shlex
 
-VERSION = "1.15-20211230"
+VERSION = "1.16-20211230"
 
 log_name = 'log4shell-finder.log'
 
@@ -550,7 +550,7 @@ def check_class(class_file, fix=False):
                                         f"{msg} >= 2.12.4",
                                         version, container=Container.FOLDER)
                                 return 0
-
+                            else:
                                 log_item(parent, Status.CVE_2021_44832,
                                         f"{msg} >= 2.12.3",
                                         version, container=Container.FOLDER)

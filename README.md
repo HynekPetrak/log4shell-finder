@@ -78,6 +78,10 @@ File system inputs: 1521824
 
 ## Changelog
 
+### Version 1.16-20211230
+
+- Fixed detection of 2.12.3 extracted
+
 ### Version 1.15-20211230
 
 - Added support for versions 2.3.2, 2.12.4 and 2.17.1
@@ -293,7 +297,7 @@ hynek@myserver:~/log4shell-finder$ ./test_log4shell.py /home/hynek/war.bak/ --ex
 [+] [CVE-2021-44832 (6.6)] Folder /home/hynek/war.bak/log4j-samples/false-hits/apache-log4j-2.17.0-bin/exploded/org/apache/logging/log4j/core contains Log4J-2.17.0 == 2.17.0
 [+] [CVE-2021-45105 (5.9)] Folder /home/hynek/war.bak/log4j-samples/false-hits/exploded/2.12.2/org/apache/logging/log4j/core contains Log4J-2.12.2 == 2.12.2
 [+] [CVE-2021-44832 (6.6)] Package /home/hynek/war.bak/apache-log4j-2.12.3-bin/log4j-core-2.12.3.jar contains Log4J-2.12.3 == 2.12.3
-[+] [CVE-2021-45105 (5.9)] Folder /home/hynek/war.bak/apache-log4j-2.12.3-bin/log4j-core-2.12.3/org/apache/logging/log4j/core contains Log4J-2.12.3 == 2.16.0
+[+] [CVE-2021-44832 (6.6)] Folder /home/hynek/war.bak/apache-log4j-2.12.3-bin/log4j-core-2.12.3/org/apache/logging/log4j/core contains Log4J-2.12.3 == 2.12.3
 [+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/BOOT-INF/lib/log4j-core-2.14.1.jar contains Log4J-2.14.1 >= 2.10.0
 [+] [CVE-2021-44228 (10.0)] Folder /home/hynek/war.bak/BOOT-INF/lib/org/apache/logging/log4j/core contains Log4J-2.14.1 >= 2.10.0
 [+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/app/spring-boot-application.jar:BOOT-INF/lib/log4j-core-2.14.1.jar contains Log4J-2.14.1 >= 2.10.0
