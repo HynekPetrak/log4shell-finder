@@ -15,7 +15,7 @@ import zipfile
 from enum import Enum
 from shlex import shlex
 
-VERSION = "1.13-20211228"
+VERSION = "1.15-20211230"
 
 log_name = 'log4shell-finder.log'
 
@@ -68,6 +68,7 @@ FILE_LOG4J_5 = get_class_names("core/loggercontext")
 FILE_LOG4J_2_10 = get_class_names("appender/nosql/nosqlappender")
 FILE_LOG4J_JNDI_LOOKUP = get_class_names("jndilookup")
 FILE_LOG4J_JNDI_MANAGER = get_class_names("jndimanager")
+FILE_LOG4J_JDBC_DSCS = get_class_names("core/appender/db/jdbc/datasourceconnectionsource")
 FILE_GONE_LOG4J_2_17 = get_class_names("core/util/setutils")
 
 ACTUAL_FILE_LOG4J_2 = "core/Appender.class"
@@ -77,6 +78,7 @@ ACTUAL_FILE_LOG4J_5 = "core/LoggerContext.class"
 ACTUAL_FILE_LOG4J_2_10 = "core/appender/nosql/NoSqlAppender.class"
 ACTUAL_FILE_LOG4J_JNDI_LOOKUP = "core/lookup/JndiLookup.class"
 ACTUAL_FILE_LOG4J_JNDI_MANAGER = "core/net/JndiManager.class"
+ACTUAL_FILE_LOG4J_JDBC_DSCS = "core/appender/db/jdbc/DataSourceConnectionSource.class"
 ACTUAL_FILE_GONE_LOG4J_2_17 = "core/util/SetUtils.class"
 ACTUAL_FILE_LOG4J1_APPENDER = "net/JMSAppender.class"
 ACTUAL_FILE_LOG4J_POM = "META-INF/maven/org.apache.logging.log4j/log4j-core/pom.properties"
@@ -96,6 +98,9 @@ IS_LOG4J_NOT_SAFE_2_12_2 = b"Error looking up JNDI resource [{}]."
 
 # This occurs in "JndiManager.class" in 2.3.1
 IS_LOG4J_SAFE_2_3_1 = b"Unsupported JNDI URI - {}"
+
+# This occurs in "DataSourceConnectionSource.class" in 2.17.1 and friends.
+IS_CVE_2021_44832_SAFE = b"JNDI must be enabled by setting log4j2.enableJndiJdbc=true"
 
 verbose = False
 debug = False
@@ -118,6 +123,11 @@ class Status(Enum):
     OLDUNSAFE = "[+] [OLDUNSAFE]"
     OLDSAFE = "[-] [OLDSAFE]"
     STRANGE = "[*] [STRANGE]"
+    CVE_2021_44832 = "[+] [CVE-2021-44832 (6.6)]"
+    CVE_2021_44228 = "[+] [CVE-2021-44228 (10.0)]"
+    CVE_2021_45046 = "[+] [CVE-2021-45046 (9.0)]"
+    CVE_2021_45105 = "[+] [CVE-2021-45105 (5.9)]" 
+    CVE_2021_4104 = "[+] [CVE-2021-4104 (8.1)]"
 
 
 class Container(Enum):
@@ -171,6 +181,7 @@ def scan_archive(f, path, fix=False):
         isLog4j2_10 = False
         hasJndiLookup = False
         hasJndiManager = False
+        hasJdbcJndiDisabled = False
         hasSetUtils = False
         isLog4j1_x = False
         isLog4j1_unsafe = False
@@ -202,7 +213,12 @@ def scan_archive(f, path, fix=False):
                 continue
 
             if fnl.endswith(CLASS_EXTS):
-                if fnl.endswith(FILE_LOG4J_JNDI_LOOKUP):
+                if fnl.endswith(FILE_LOG4J_JDBC_DSCS):
+                    with zf.open(fn, "r") as inner_class:
+                        class_content = inner_class.read()
+                        if class_content.find(IS_CVE_2021_44832_SAFE) >= 0:
+                            hasJdbcJndiDisabled = True
+                elif fnl.endswith(FILE_LOG4J_JNDI_LOOKUP):
                     jndilookup_path = pathlib.PurePosixPath(fn)
                     hasJndiLookup = True
                     with zf.open(fn, "r") as inner_class:
@@ -223,8 +239,8 @@ def scan_archive(f, path, fix=False):
                                 isLog4j2_16 = True
                         else:
                             isLog4j2_15_override = True
-                            if class_content.find(IS_LOG4J_SAFE_2_3_1) >= 0:
-                                isLog4j2_3_1 = True
+                        if class_content.find(IS_LOG4J_SAFE_2_3_1) >= 0:
+                            isLog4j2_3_1 = True
 
                 elif fnl.endswith(FILE_GONE_LOG4J_2_17):
                     hasSetUtils = True
@@ -297,35 +313,47 @@ def scan_archive(f, path, fix=False):
             if isLog4j_2_10_0:
                 if isRecent:
                     if isLog4j2_12_3:
-                        buf = f"{prefix} == 2.12.3"
-                        status = Status.SAFE
+                        if hasJdbcJndiDisabled:
+                            buf = f"{prefix} == 2.12.4"
+                            status = Status.SAFE
+                        else:
+                            buf = f"{prefix} == 2.12.3"
+                            status = Status.CVE_2021_44832
                     elif isLog4j2_17:
-                        buf = f"{prefix} >= 2.17.0"
-                        status = Status.SAFE
+                        if hasJdbcJndiDisabled:
+                            buf = f"{prefix} >= 2.17.1"
+                            status = Status.SAFE
+                        else:
+                            buf = f"{prefix} >= 2.17.0"
+                            status = Status.CVE_2021_44832
                     elif isLog4j2_16:
                         buf = f"{prefix} == 2.16.0"
-                        status = Status.NOTOKAY
+                        status = Status.CVE_2021_45105
                     elif isLog4j_2_12_2:
                         buf = f"{prefix} == 2.12.2"
-                        status = Status.NOTOKAY
+                        status = Status.CVE_2021_45105
                     else:
                         buf = f"{prefix} == 2.15.0"
-                        status = Status.VULNERABLE
+                        status = Status.CVE_2021_45046
                 else:
                     buf = f"{prefix} >= 2.10.0"
-                    status = Status.VULNERABLE
+                    status = Status.CVE_2021_44228
             elif isLog4j2_3_1:
-                buf = f"{prefix} == 2.3.1"
-                status = Status.SAFE
+                if hasJdbcJndiDisabled:
+                    buf = f"{prefix} == 2.3.2"
+                    status = Status.SAFE
+                else:
+                    buf = f"{prefix} == 2.3.1"
+                    status = Status.CVE_2021_44832
             else:
                 buf = f"{prefix} >= 2.0-beta9 (< 2.10.0)"
-                status = Status.VULNERABLE
+                status = Status.CVE_2021_44228
         else:
             buf = f"{prefix} <= 2.0-beta8 or JndiLookup.class has been removed"
             status = Status.MAYBESAFE
         
         fix_msg = ""
-        if status == Status.VULNERABLE and fix:
+        if status in [Status.CVE_2021_45046, Status.CVE_2021_44228] and fix:
             if not jndilookup_path:
                 log.info(f"[W] Cannot fix {path}, JndiLookup.class not found")
             elif ":" in path:
@@ -360,16 +388,16 @@ def scan_archive(f, path, fix=False):
 
         log_item(path, status, buf + fix_msg, version, Container.PACKAGE)
 
-        if status == status.VULNERABLE:
+        if "CVE" in status.name:
             return hits + 1
         else:
             return hits
     elif isLog4j1_x:
         if isLog4j1_unsafe:
-            log_item(path, Status.OLDUNSAFE,
+            log_item(path, Status.CVE_2021_4104,
                     f"contains Log4J-{version} <= 1.2.17, JMSAppender.class found",
                     version, Container.PACKAGE)
-            return hits
+            return hits + 1
         else:
             log_item(path, Status.OLDSAFE,
                     f"contains Log4J-{version} <= 1.2.17, JMSAppender.class not found",
@@ -411,7 +439,7 @@ def check_class(class_file, fix=False):
     parent = pathlib.PurePath(class_file).parent
     if class_file.lower().endswith(FILE_OLD_LOG4J):
         if check_path_exists(parent.joinpath(ACTUAL_FILE_LOG4J1_APPENDER)):
-            log_item(parent, Status.OLDUNSAFE,
+            log_item(parent, Status.CVE_2021_4104,
                      f"contains Log4J-1.x <= 1.2.17, JMSAppender.class found",
                      container=Container.FOLDER)
             return 1
@@ -450,29 +478,44 @@ def check_class(class_file, fix=False):
     fn = ACTUAL_FILE_LOG4J_JNDI_LOOKUP
     jndilookup_path = check_path_exists(parent.parent.joinpath(fn))
     if not jndilookup_path:
-        log_item(parent, Status.SAFE,
+        log_item(parent, Status.MAYBESAFE,
             f"{msg} <= 2.0-beta8 or {fn} has been removed",
             version, container=Container.FOLDER)
         return 0
 
     isVulnerable = True
     fix_msg = ""
+    hasJdbcJndiDisabled = False
+    fn = parent.parent.joinpath(ACTUAL_FILE_LOG4J_JDBC_DSCS)
+    if check_path_exists(fn):
+        with open(fn, "rb") as f:
+            with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ) as mm:
+                if mm.find(IS_CVE_2021_44832_SAFE) >= 0:
+                    hasJdbcJndiDisabled = True
+
     if not check_path_exists(parent.parent.joinpath(ACTUAL_FILE_LOG4J_2_10)):
         fn = parent.parent.joinpath(ACTUAL_FILE_LOG4J_JNDI_MANAGER)
         if check_path_exists(fn):
             with open(fn, "rb") as f:
                 with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ) as mm:
                     if mm.find(IS_LOG4J_SAFE_2_3_1) >= 0:
-                        log_item(parent, Status.SAFE,
-                                f"{msg} == 2.3.1",
-                                version, container=Container.FOLDER)
-                        return 0
+                        if hasJdbcJndiDisabled:
+                            log_item(parent, Status.SAFE,
+                                    f"{msg} == 2.3.2",
+                                    version, container=Container.FOLDER)
+                            return 0
+                        else:
+                            log_item(parent, Status.CVE_2021_44832,
+                                    f"{msg} == 2.3.1",
+                                    version, container=Container.FOLDER)
+                            return 1
 
-        status = Status.VULNERABLE
+        status = Status.CVE_2021_44228
         if fix:
             fix_msg = fix_jndilookup_class(jndilookup_path)
             if fix_msg:
                 status = Status.FIXED
+
         log_item(parent, status,
                 f"{msg} >= 2.0-beta9 (< 2.10.0)" + fix_msg,
                 version, container=Container.FOLDER)
@@ -484,34 +527,46 @@ def check_class(class_file, fix=False):
             with open(fn, "rb") as f:
                 with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ) as mm:
                     if mm.find(IS_LOG4J_NOT_SAFE_2_12_2) == -1:
-                        log_item(parent, Status.NOTOKAY,
+                        log_item(parent, Status.CVE_2021_45105,
                                 f"{msg} == 2.12.2",
                                 version, container=Container.FOLDER)
-                        return 0
+                        return 1
                     if mm.find(INSIDE_LOG4J_2_17_0) >= 0:
                         fn = parent.parent.joinpath(ACTUAL_FILE_GONE_LOG4J_2_17)
                         if not check_path_exists(fn):
-                            log_item(parent, Status.SAFE,
-                                    f"{msg} >= 2.17.0",
-                                    version, container=Container.FOLDER)
-                            return 0
+                            if hasJdbcJndiDisabled:
+                                log_item(parent, Status.SAFE,
+                                        f"{msg} == 2.17.1",
+                                        version, container=Container.FOLDER)
+                                return 0
+                            else:
+                                log_item(parent, Status.CVE_2021_44832,
+                                        f"{msg} == 2.17.0",
+                                        version, container=Container.FOLDER)
+                                return 1
                         else:
-                            log_item(parent, Status.SAFE,
-                                    f"{msg} >= 2.12.3",
-                                    version, container=Container.FOLDER)
-                            return 0
+                            if hasJdbcJndiDisabled:
+                                log_item(parent, Status.SAFE,
+                                        f"{msg} >= 2.12.4",
+                                        version, container=Container.FOLDER)
+                                return 0
+
+                                log_item(parent, Status.CVE_2021_44832,
+                                        f"{msg} >= 2.12.3",
+                                        version, container=Container.FOLDER)
+                                return 1
 
         fn = parent.parent.joinpath(ACTUAL_FILE_LOG4J_JNDI_MANAGER)
         if check_path_exists(fn):
             with open(fn, "rb") as f:
                 with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ) as mm:
                     if mm.find(IS_LOG4J_SAFE_2_16_0) >= 0:
-                        log_item(parent, Status.NOTOKAY,
+                        log_item(parent, Status.CVE_2021_45105,
                                 f"{msg} == 2.16.0",
                                 version, container=Container.FOLDER)
                         return 0
                     elif mm.find(IS_LOG4J_SAFE_2_15_0) >= 0:
-                        status = Status.VULNERABLE
+                        status = Status.CVE_2021_45046
                         if fix:
                             fix_msg = fix_jndilookup_class(jndilookup_path)
                             if fix_msg:
@@ -521,7 +576,7 @@ def check_class(class_file, fix=False):
                                 version, container=Container.FOLDER)
                         return 1
 
-    status = Status.VULNERABLE
+    status = Status.CVE_2021_44228
     if fix:
         fix_msg = fix_jndilookup_class(jndilookup_path)
         if fix_msg:
