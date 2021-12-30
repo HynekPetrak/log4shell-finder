@@ -81,7 +81,7 @@ File system inputs: 1521824
 ### Version 1.15-20211230
 
 - Added support for versions 2.3.2, 2.12.4 and 2.17.1
-- Reporting actuall CVEs instead of VULNERABLE or NOTOKAY status
+- Reporting actual CVEs instead of VULNERABLE or NOTOKAY status
 
 ### Version 1.13-20211228
 
