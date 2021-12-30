@@ -324,7 +324,7 @@ def scan_archive(f, path, fix=False):
                             buf = f"{prefix} >= 2.17.1"
                             status = Status.SAFE
                         else:
-                            buf = f"{prefix} >= 2.17.0"
+                            buf = f"{prefix} == 2.17.0"
                             status = Status.CVE_2021_44832
                     elif isLog4j2_16:
                         buf = f"{prefix} == 2.16.0"
@@ -340,7 +340,7 @@ def scan_archive(f, path, fix=False):
                     status = Status.CVE_2021_44228
             elif isLog4j2_3_1:
                 if hasJdbcJndiDisabled:
-                    buf = f"{prefix} == 2.3.2"
+                    buf = f"{prefix} >= 2.3.2"
                     status = Status.SAFE
                 else:
                     buf = f"{prefix} == 2.3.1"
@@ -501,7 +501,7 @@ def check_class(class_file, fix=False):
                     if mm.find(IS_LOG4J_SAFE_2_3_1) >= 0:
                         if hasJdbcJndiDisabled:
                             log_item(parent, Status.SAFE,
-                                    f"{msg} == 2.3.2",
+                                    f"{msg} >= 2.3.2",
                                     version, container=Container.FOLDER)
                             return 0
                         else:
@@ -536,7 +536,7 @@ def check_class(class_file, fix=False):
                         if not check_path_exists(fn):
                             if hasJdbcJndiDisabled:
                                 log_item(parent, Status.SAFE,
-                                        f"{msg} == 2.17.1",
+                                        f"{msg} >= 2.17.1",
                                         version, container=Container.FOLDER)
                                 return 0
                             else:
@@ -552,7 +552,7 @@ def check_class(class_file, fix=False):
                                 return 0
                             else:
                                 log_item(parent, Status.CVE_2021_44832,
-                                        f"{msg} >= 2.12.3",
+                                        f"{msg} == 2.12.3",
                                         version, container=Container.FOLDER)
                                 return 1
 
