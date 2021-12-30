@@ -195,7 +195,7 @@ Output to json contains all found items as well as host information:
     {
       "container": "Package",
       "path": "/home/hynek/.m2/repository/org/apache/logging/log4j/log4j-core/2.14.1/log4j-core-2.14.1.jar",
-      "status": "VULNERABLE",
+      "status": "CVE_2021_44228",
       "message": "contains Log4J-2.14.1 >= 2.10.0",
       "pom_version": "2.14.1"
     },
@@ -209,14 +209,14 @@ Output to json contains all found items as well as host information:
     {
       "container": "Package",
       "path": "/home/hynek/.m2/repository/log4j/log4j/1.2.17/log4j-1.2.17.jar",
-      "status": "OLDUNSAFE",
+      "status": "CVE_2021_4104",
       "message": "contains Log4J-1.2.17 <= 1.2.17, JMSAppender.class found",
       "pom_version": "1.2.17"
     },
     {
       "container": "Package",
       "path": "/home/hynek/.m2/repository/log4j/log4j/1.2.12/log4j-1.2.12.jar",
-      "status": "OLDUNSAFE",
+      "status": "CVE_2021_4104",
       "message": "contains Log4J-1.x <= 1.2.17, JMSAppender.class found",
       "pom_version": "1.x"
     },
@@ -237,84 +237,77 @@ Output to json contains all found items as well as host information:
 has following columns:
 ```
 hostname,ip,fqdn,container,status,path,message,pom_version
-myserver,10.0.0.1,myserver,Package,VULNERABLE,/home/hynek/.m2/repository/org/apache/logging/log4j/log4j-core/2.14.1/log4j-core-2.14.1.jar,contains Log4J-2.14.1 >= 2.10.0,2.14.1
+myserver,10.0.0.1,myserver,Package,CVE-2021-44228,/home/hynek/.m2/repository/org/apache/logging/log4j/log4j-core/2.14.1/log4j-core-2.14.1.jar,contains Log4J-2.14.1 >= 2.10.0,2.14.1
 myserver,10.0.0.1,myserver,Package,NOTOKAY,/home/hynek/.m2/repository/org/apache/logging/log4j/log4j-core/2.16.0/log4j-core-2.16.0.jar,contains Log4J-2.16.0 == 2.16.0,2.16.0
-myserver,10.0.0.1,myserver,Package,OLDUNSAFE,/home/hynek/.m2/repository/log4j/log4j/1.2.17/log4j-1.2.17.jar,"contains Log4J-1.2.17 <= 1.2.17, JMSAppender.class found",1.2.17
-myserver,10.0.0.1,myserver,Package,OLDUNSAFE,/home/hynek/.m2/repository/log4j/log4j/1.2.12/log4j-1.2.12.jar,"contains Log4J-1.x <= 1.2.17, JMSAppender.class found",1.x
+myserver,10.0.0.1,myserver,Package,CVE_2021_4104,/home/hynek/.m2/repository/log4j/log4j/1.2.17/log4j-1.2.17.jar,"contains Log4J-1.2.17 <= 1.2.17, JMSAppender.class found",1.2.17
+myserver,10.0.0.1,myserver,Package,CVE_2021_4104,/home/hynek/.m2/repository/log4j/log4j/1.2.12/log4j-1.2.12.jar,"contains Log4J-1.x <= 1.2.17, JMSAppender.class found",1.x
 myserver,10.0.0.1,myserver,Package,MAYBESAFE,/home/hynek/war/elastic-apm-java-aws-lambda-layer-1.28.1.zip:elastic-apm-agent-1.28.1.jar,contains Log4J-2.12.1 <= 2.0-beta8 (JndiLookup.class not present),2.12.1
 ```
 
 ## Sample run
 
 ```bash
-hynek@myserver:~/log4shell-finder$ ./test_log4shell.py ../war/ --exclude-dirs /mnt --same-fs --csv-out --json-out
-[I] Starting ./test_log4shell.py ver. 1.11-20211225
-[I] Parameters: ./test_log4shell.py ../war/ --exclude-dirs /mnt --same-fs --csv-out --json-out
+hynek@myserver:~/log4shell-finder$ ./test_log4shell.py /home/hynek/war.bak/ --exclude-dirs /mnt --same-fs
+[I] Starting ./test_log4shell.py ver. 1.15-20211230
+[I] Parameters: ./test_log4shell.py /home/hynek/war.bak/ --exclude-dirs /mnt --same-fs
 [I] 'hostname': 'myserver', 'fqdn': 'myserver', 'ip': '10.0.0.1', 'system': 'Linux', 'release': '5.4.0-58-generic', 'version': '#64-Ubuntu SMP Wed Dec 9 08:16:25 UTC 2020', 'machine': 'x86_64', 'cpu': 'x86_64'
 [I] Analyzing paths (could take a long time).
-[*] [MAYBESAFE] Package /home/hynek/war/elastic-apm-java-aws-lambda-layer-1.28.1.zip:elastic-apm-agent-1.28.1.jar contains Log4J-2.12.1 <= 2.0-beta8 or JndiLookup.class has been removed
-[*] [MAYBESAFE] Package /home/hynek/war/elastic-apm-agent-1.28.1.jar contains Log4J-2.12.1 <= 2.0-beta8 or JndiLookup.class has been removed
-[-] [SAFE] Package /home/hynek/war/apache-log4j-2.12.3-bin.zip:apache-log4j-2.12.3-bin/log4j-core-2.12.3.jar contains Log4J-2.12.3 == 2.12.3
-[*] [STRANGE] Package /home/hynek/war/apache-log4j-2.12.3-bin.zip:apache-log4j-2.12.3-bin/log4j-core-2.12.3-sources.jar contains pom.properties for Log4J-2.12.3, but classes missing
-[*] [STRANGE] Package /home/hynek/war/apache-log4j-2.12.3-bin.zip:apache-log4j-2.12.3-bin/log4j-core-2.12.3-tests.jar contains pom.properties for Log4J-2.12.3, but classes missing
-[+] [VULNERABLE] Package /home/hynek/war/apache-log4j-2.15.0-bin.zip:apache-log4j-2.15.0-bin/log4j-core-2.15.0.jar contains Log4J-2.15.0 == 2.15.0
-[*] [STRANGE] Package /home/hynek/war/apache-log4j-2.15.0-bin.zip:apache-log4j-2.15.0-bin/log4j-core-2.15.0-sources.jar contains pom.properties for Log4J-2.15.0, but classes missing
-[*] [STRANGE] Package /home/hynek/war/apache-log4j-2.15.0-bin.zip:apache-log4j-2.15.0-bin/log4j-core-2.15.0-tests.jar contains pom.properties for Log4J-2.15.0, but classes missing
-[-] [SAFE] Package /home/hynek/war/apache-log4j-2.3.1-bin.zip:apache-log4j-2.3.1-bin/log4j-core-2.3.1.jar contains Log4J-2.3.1 == 2.3.1
-[*] [STRANGE] Package /home/hynek/war/apache-log4j-2.3.1-bin.zip:apache-log4j-2.3.1-bin/log4j-core-2.3.1-tests.jar contains pom.properties for Log4J-2.3.1, but classes missing
-[+] [VULNERABLE] Package /home/hynek/war/spring-boot-application.jar:BOOT-INF/lib/log4j-core-2.14.1.jar contains Log4J-2.14.1 >= 2.10.0
-[+] [VULNERABLE] Package /home/hynek/war/apache-log4j-2.14.0-bin.zip:apache-log4j-2.14.0-bin/log4j-core-2.14.0.jar contains Log4J-2.14.0 >= 2.10.0
-[*] [STRANGE] Package /home/hynek/war/apache-log4j-2.14.0-bin.zip:apache-log4j-2.14.0-bin/log4j-core-2.14.0-sources.jar contains pom.properties for Log4J-2.14.0, but classes missing
-[*] [STRANGE] Package /home/hynek/war/apache-log4j-2.14.0-bin.zip:apache-log4j-2.14.0-bin/log4j-core-2.14.0-tests.jar contains pom.properties for Log4J-2.14.0, but classes missing
-[+] [VULNERABLE] Package /home/hynek/war/apache-log4j-2.15.0-bin/log4j-core-2.15.0.jar contains Log4J-2.15.0 == 2.15.0
-[*] [STRANGE] Package /home/hynek/war/apache-log4j-2.15.0-bin/log4j-core-2.15.0-sources.jar contains pom.properties for Log4J-2.15.0, but classes missing
-[*] [STRANGE] Package /home/hynek/war/apache-log4j-2.15.0-bin/log4j-core-2.15.0-tests.jar contains pom.properties for Log4J-2.15.0, but classes missing
-[+] [VULNERABLE] Folder /home/hynek/war/apache-log4j-2.15.0-bin/log4j-core-2.15.0/org/apache/logging/log4j/core contains Log4J-2.15.0 == 2.15.0
-[+] [OLDUNSAFE] Package /home/hynek/war/log4j-samples/old-hits/log4j-1.1.3.jar contains Log4J-1.x <= 1.2.17, JMSAppender.class found
-[+] [OLDUNSAFE] Package /home/hynek/war/log4j-samples/old-hits/log4j-1.2.17.jar contains Log4J-1.2.17 <= 1.2.17, JMSAppender.class found
-[*] [MAYBESAFE] Package /home/hynek/war/log4j-samples/old-hits/log4j-core-2.0-beta2.jar contains Log4J-2.0-beta2 <= 2.0-beta8 or JndiLookup.class has been removed
-[+] [OLDUNSAFE] Folder /home/hynek/war/log4j-samples/old-hits/log4j-1.2.17/org/apache/log4j contains Log4J-1.x <= 1.2.17, JMSAppender.class found
-[+] [VULNERABLE] Package /home/hynek/war/log4j-samples/true-hits/log4j-core-2.15.0.jar contains Log4J-2.15.0 == 2.15.0
-[+] [VULNERABLE] Package /home/hynek/war/log4j-samples/true-hits/log4j-core-2.9.1.jar contains Log4J-2.9.1 >= 2.0-beta9 (< 2.10.0)
-[+] [VULNERABLE] Package /home/hynek/war/log4j-samples/true-hits/log4j-core-2.10.0.zip contains Log4J-2.10.0 >= 2.10.0
-[+] [VULNERABLE] Package /home/hynek/war/log4j-samples/true-hits/log4j-core-2.0-beta9.jar contains Log4J-2.0-beta9 >= 2.0-beta9 (< 2.10.0)
-[+] [VULNERABLE] Package /home/hynek/war/log4j-samples/true-hits/log4j-core-2.10.0.jar contains Log4J-2.10.0 >= 2.10.0
-[+] [VULNERABLE] Package /home/hynek/war/log4j-samples/true-hits/uber/infinispan-embedded-query-8.2.12.Final.jar contains Log4J-2.5 >= 2.0-beta9 (< 2.10.0)
-[+] [VULNERABLE] Folder /home/hynek/war/log4j-samples/true-hits/uber/expanded/org/apache/logging/log4j/core contains Log4J-2.5 >= 2.0-beta9 (< 2.10.0)
-[+] [VULNERABLE] Package /home/hynek/war/log4j-samples/true-hits/shaded/clt-1.0-SNAPSHOT.jar contains Log4J-2.14.1 >= 2.10.0
-[+] [VULNERABLE] Folder /home/hynek/war/log4j-samples/true-hits/shaded/expanded/clt/shaded/l/core contains Log4J-2.x >= 2.10.0
-[+] [VULNERABLE] Folder /home/hynek/war/log4j-samples/true-hits/exploded/2.12.1/org/apache/logging/log4j/core contains Log4J-2.12.1 >= 2.10.0
-[+] [VULNERABLE] Package /home/hynek/war/log4j-samples/true-hits/springboot-executable/spiff-0.0.1-SNAPSHOT.zip:WEB-INF/lib/log4j-core-2.10.0.jar contains Log4J-2.10.0 >= 2.10.0
-[+] [VULNERABLE] Package /home/hynek/war/log4j-samples/true-hits/springboot-executable/spiff-0.0.1-SNAPSHOT.jar:WEB-INF/lib/log4j-core-2.10.0.jar contains Log4J-2.10.0 >= 2.10.0
-[+] [VULNERABLE] Package /home/hynek/war/log4j-samples/true-hits/springboot-executable/spiff-0.0.1-SNAPSHOT.ear:WEB-INF/lib/log4j-core-2.10.0.jar contains Log4J-2.10.0 >= 2.10.0
-[+] [VULNERABLE] Package /home/hynek/war/log4j-samples/true-hits/springboot-executable/spiff-0.0.1-SNAPSHOT.war:WEB-INF/lib/log4j-core-2.10.0.jar contains Log4J-2.10.0 >= 2.10.0
-[+] [NOTOKAY] Package /home/hynek/war/log4j-samples/false-hits/log4j-core-2.16.0.jar contains Log4J-2.16.0 == 2.16.0
-[+] [NOTOKAY] Package /home/hynek/war/log4j-samples/false-hits/log4j-core-2.12.2.jar contains Log4J-2.12.2 == 2.12.2
-[-] [SAFE] Package /home/hynek/war/log4j-samples/false-hits/apache-log4j-2.17.0-bin.zip:apache-log4j-2.17.0-bin/log4j-core-2.17.0.jar contains Log4J-2.17.0 >= 2.17.0
-[*] [STRANGE] Package /home/hynek/war/log4j-samples/false-hits/apache-log4j-2.17.0-bin.zip:apache-log4j-2.17.0-bin/log4j-core-2.17.0-sources.jar contains pom.properties for Log4J-2.17.0, but classes missing
-[*] [STRANGE] Package /home/hynek/war/log4j-samples/false-hits/apache-log4j-2.17.0-bin.zip:apache-log4j-2.17.0-bin/log4j-core-2.17.0-tests.jar contains pom.properties for Log4J-2.17.0, but classes missing
-[*] [STRANGE] Package /home/hynek/war/log4j-samples/false-hits/apache-log4j-2.17.0-bin/log4j-core-2.17.0-tests.jar contains pom.properties for Log4J-2.17.0, but classes missing
-[-] [SAFE] Package /home/hynek/war/log4j-samples/false-hits/apache-log4j-2.17.0-bin/log4j-core-2.17.0.jar contains Log4J-2.17.0 >= 2.17.0
-[*] [STRANGE] Package /home/hynek/war/log4j-samples/false-hits/apache-log4j-2.17.0-bin/log4j-core-2.17.0-sources.jar contains pom.properties for Log4J-2.17.0, but classes missing
-[-] [SAFE] Folder /home/hynek/war/log4j-samples/false-hits/apache-log4j-2.17.0-bin/exploded/org/apache/logging/log4j/core contains Log4J-2.17.0 >= 2.17.0
-[-] [NOTOKAY] Folder /home/hynek/war/log4j-samples/false-hits/exploded/2.12.2/org/apache/logging/log4j/core contains Log4J-2.12.2 == 2.12.2
-[-] [SAFE] Package /home/hynek/war/apache-log4j-2.12.3-bin/log4j-core-2.12.3.jar contains Log4J-2.12.3 == 2.12.3
-[*] [STRANGE] Package /home/hynek/war/apache-log4j-2.12.3-bin/log4j-core-2.12.3-sources.jar contains pom.properties for Log4J-2.12.3, but classes missing
-[*] [STRANGE] Package /home/hynek/war/apache-log4j-2.12.3-bin/log4j-core-2.12.3-tests.jar contains pom.properties for Log4J-2.12.3, but classes missing
-[-] [SAFE] Folder /home/hynek/war/apache-log4j-2.12.3-bin/log4j-core-2.12.3/org/apache/logging/log4j/core contains Log4J-2.12.3 >= 2.12.3
-[+] [VULNERABLE] Package /home/hynek/war/BOOT-INF/lib/log4j-core-2.14.1.jar contains Log4J-2.14.1 >= 2.10.0
-[+] [VULNERABLE] Folder /home/hynek/war/BOOT-INF/lib/org/apache/logging/log4j/core contains Log4J-2.14.1 >= 2.10.0
-[+] [VULNERABLE] Package /home/hynek/war/app/spring-boot-application.jar:BOOT-INF/lib/log4j-core-2.14.1.jar contains Log4J-2.14.1 >= 2.10.0
-[-] [SAFE] Folder /home/hynek/war/elastic/agent/org/apache/logging/log4j/core contains Log4J-2.12.1 <= 2.0-beta8 or core/lookup/JndiLookup.class has been removed
-[*] [STRANGE] Package /home/hynek/war/apache-log4j-2.14.0-bin/log4j-core-2.14.0-tests.jar contains pom.properties for Log4J-2.14.0, but classes missing
-[+] [VULNERABLE] Package /home/hynek/war/apache-log4j-2.14.0-bin/log4j-core-2.14.0.jar contains Log4J-2.14.0 >= 2.10.0
-[*] [STRANGE] Package /home/hynek/war/apache-log4j-2.14.0-bin/log4j-core-2.14.0-sources.jar contains pom.properties for Log4J-2.14.0, but classes missing
-[+] [OLDUNSAFE] Package /home/hynek/war/HelloLogging/target/whoiscrawler/WEB-INF/lib/log4j-1.2.17.jar contains Log4J-1.2.17 <= 1.2.17, JMSAppender.class found
-[-] [SAFE] Folder /home/hynek/war/apache-log4j-2.3.1/org/apache/logging/log4j/core contains Log4J-2.3.1 == 2.3.1
-[-] [SAFE] Package /home/hynek/war/apache-log4j-2.3.1-bin/log4j-core-2.3.1.jar contains Log4J-2.3.1 == 2.3.1
-[*] [STRANGE] Package /home/hynek/war/apache-log4j-2.3.1-bin/log4j-core-2.3.1-tests.jar contains pom.properties for Log4J-2.3.1, but classes missing
-[I] Results saved into myserver_10.0.0.1.json
-[I] Results saved into myserver_10.0.0.1.csv
-[I] Finished, scanned 23138 files in 1789 folders.
-[I] Found 24 vulnerable or unsafe log4j instances.
+[-] [SAFE] Package /home/hynek/war.bak/apache-log4j-2.12.4-bin.zip:apache-log4j-2.12.4-bin/log4j-core-2.12.4.jar contains Log4J-2.12.4 == 2.12.4
+[*] [STRANGE] Package /home/hynek/war.bak/apache-log4j-2.12.4-bin.zip:apache-log4j-2.12.4-bin/log4j-core-2.12.4-sources.jar contains pom.properties for Log4J-2.12.4, but classes missing
+[*] [MAYBESAFE] Package /home/hynek/war.bak/elastic-apm-java-aws-lambda-layer-1.28.1.zip:elastic-apm-agent-1.28.1.jar contains Log4J-2.12.1 <= 2.0-beta8 or JndiLookup.class has been removed
+[*] [MAYBESAFE] Package /home/hynek/war.bak/elastic-apm-agent-1.28.1.jar contains Log4J-2.12.1 <= 2.0-beta8 or JndiLookup.class has been removed
+[+] [CVE-2021-44832 (6.6)] Package /home/hynek/war.bak/apache-log4j-2.12.3-bin.zip:apache-log4j-2.12.3-bin/log4j-core-2.12.3.jar contains Log4J-2.12.3 == 2.12.3
+[+] [CVE-2021-45046 (9.0)] Package /home/hynek/war.bak/apache-log4j-2.15.0-bin.zip:apache-log4j-2.15.0-bin/log4j-core-2.15.0.jar contains Log4J-2.15.0 == 2.15.0
+[-] [SAFE] Package /home/hynek/war.bak/apache-log4j-2.17.1-bin.zip:apache-log4j-2.17.1-bin/log4j-core-2.17.1.jar contains Log4J-2.17.1 >= 2.17.1
+[+] [CVE-2021-44832 (6.6)] Package /home/hynek/war.bak/apache-log4j-2.17.0-bin.zip:apache-log4j-2.17.0-bin/log4j-core-2.17.0.jar contains Log4J-2.17.0 >= 2.17.0
+[+] [CVE-2021-44832 (6.6)] Package /home/hynek/war.bak/apache-log4j-2.3.1-bin.zip:apache-log4j-2.3.1-bin/log4j-core-2.3.1.jar contains Log4J-2.3.1 == 2.3.1
+[-] [SAFE] Package /home/hynek/war.bak/apache-log4j-2.3.2-bin.zip:apache-log4j-2.3.2-bin/log4j-core-2.3.2.jar contains Log4J-2.3.2 == 2.3.2
+[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/spring-boot-application.jar:BOOT-INF/lib/log4j-core-2.14.1.jar contains Log4J-2.14.1 >= 2.10.0
+[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/apache-log4j-2.14.0-bin.zip:apache-log4j-2.14.0-bin/log4j-core-2.14.0.jar contains Log4J-2.14.0 >= 2.10.0
+[+] [CVE-2021-45046 (9.0)] Package /home/hynek/war.bak/apache-log4j-2.15.0-bin/log4j-core-2.15.0.jar contains Log4J-2.15.0 == 2.15.0
+[+] [CVE-2021-45046 (9.0)] Folder /home/hynek/war.bak/apache-log4j-2.15.0-bin/log4j-core-2.15.0/org/apache/logging/log4j/core contains Log4J-2.15.0 == 2.15.0
+[-] [SAFE] Package /home/hynek/war.bak/apache-log4j-2.3.2-bin/log4j-core-2.3.2.jar contains Log4J-2.3.2 == 2.3.2
+[-] [SAFE] Folder /home/hynek/war.bak/apache-log4j-2.3.2-bin/log4j-core-2.3.2/org/apache/logging/log4j/core contains Log4J-2.3.2 == 2.3.2
+[+] [CVE-2021-4104 (8.1)] Package /home/hynek/war.bak/log4j-samples/old-hits/log4j-1.1.3.jar contains Log4J-1.x <= 1.2.17, JMSAppender.class found
+[+] [CVE-2021-4104 (8.1)] Package /home/hynek/war.bak/log4j-samples/old-hits/log4j-1.2.17.jar contains Log4J-1.2.17 <= 1.2.17, JMSAppender.class found
+[*] [MAYBESAFE] Package /home/hynek/war.bak/log4j-samples/old-hits/log4j-core-2.0-beta2.jar contains Log4J-2.0-beta2 <= 2.0-beta8 or JndiLookup.class has been removed
+[+] [CVE-2021-4104 (8.1)] Folder /home/hynek/war.bak/log4j-samples/old-hits/log4j-1.2.17/org/apache/log4j contains Log4J-1.x <= 1.2.17, JMSAppender.class found
+[+] [CVE-2021-45046 (9.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/log4j-core-2.15.0.jar contains Log4J-2.15.0 == 2.15.0
+[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/log4j-core-2.9.1.jar contains Log4J-2.9.1 >= 2.0-beta9 (< 2.10.0)
+[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/log4j-core-2.10.0.zip contains Log4J-2.10.0 >= 2.10.0
+[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/log4j-core-2.0-beta9.jar contains Log4J-2.0-beta9 >= 2.0-beta9 (< 2.10.0)
+[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/log4j-core-2.10.0.jar contains Log4J-2.10.0 >= 2.10.0
+[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/uber/infinispan-embedded-query-8.2.12.Final.jar contains Log4J-2.5 >= 2.0-beta9 (< 2.10.0)
+[+] [CVE-2021-44228 (10.0)] Folder /home/hynek/war.bak/log4j-samples/true-hits/uber/expanded/org/apache/logging/log4j/core contains Log4J-2.5 >= 2.0-beta9 (< 2.10.0)
+[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/shaded/clt-1.0-SNAPSHOT.jar contains Log4J-2.14.1 >= 2.10.0
+[+] [CVE-2021-44228 (10.0)] Folder /home/hynek/war.bak/log4j-samples/true-hits/shaded/expanded/clt/shaded/l/core contains Log4J-2.x >= 2.10.0
+[+] [CVE-2021-44228 (10.0)] Folder /home/hynek/war.bak/log4j-samples/true-hits/exploded/2.12.1/org/apache/logging/log4j/core contains Log4J-2.12.1 >= 2.10.0
+[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/springboot-executable/spiff-0.0.1-SNAPSHOT.zip:WEB-INF/lib/log4j-core-2.10.0.jar contains Log4J-2.10.0 >= 2.10.0
+[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/springboot-executable/spiff-0.0.1-SNAPSHOT.jar:WEB-INF/lib/log4j-core-2.10.0.jar contains Log4J-2.10.0 >= 2.10.0
+[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/springboot-executable/spiff-0.0.1-SNAPSHOT.ear:WEB-INF/lib/log4j-core-2.10.0.jar contains Log4J-2.10.0 >= 2.10.0
+[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/springboot-executable/spiff-0.0.1-SNAPSHOT.war:WEB-INF/lib/log4j-core-2.10.0.jar contains Log4J-2.10.0 >= 2.10.0
+[+] [CVE-2021-45105 (5.9)] Package /home/hynek/war.bak/log4j-samples/false-hits/log4j-core-2.16.0.jar contains Log4J-2.16.0 == 2.16.0
+[+] [CVE-2021-45105 (5.9)] Package /home/hynek/war.bak/log4j-samples/false-hits/log4j-core-2.12.2.jar contains Log4J-2.12.2 == 2.12.2
+[+] [CVE-2021-44832 (6.6)] Package /home/hynek/war.bak/log4j-samples/false-hits/apache-log4j-2.17.0-bin.zip:apache-log4j-2.17.0-bin/log4j-core-2.17.0.jar contains Log4J-2.17.0 >= 2.17.0
+[+] [CVE-2021-44832 (6.6)] Package /home/hynek/war.bak/log4j-samples/false-hits/apache-log4j-2.17.0-bin/log4j-core-2.17.0.jar contains Log4J-2.17.0 >= 2.17.0
+[+] [CVE-2021-44832 (6.6)] Folder /home/hynek/war.bak/log4j-samples/false-hits/apache-log4j-2.17.0-bin/exploded/org/apache/logging/log4j/core contains Log4J-2.17.0 == 2.17.0
+[+] [CVE-2021-45105 (5.9)] Folder /home/hynek/war.bak/log4j-samples/false-hits/exploded/2.12.2/org/apache/logging/log4j/core contains Log4J-2.12.2 == 2.12.2
+[+] [CVE-2021-44832 (6.6)] Package /home/hynek/war.bak/apache-log4j-2.12.3-bin/log4j-core-2.12.3.jar contains Log4J-2.12.3 == 2.12.3
+[+] [CVE-2021-45105 (5.9)] Folder /home/hynek/war.bak/apache-log4j-2.12.3-bin/log4j-core-2.12.3/org/apache/logging/log4j/core contains Log4J-2.12.3 == 2.16.0
+[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/BOOT-INF/lib/log4j-core-2.14.1.jar contains Log4J-2.14.1 >= 2.10.0
+[+] [CVE-2021-44228 (10.0)] Folder /home/hynek/war.bak/BOOT-INF/lib/org/apache/logging/log4j/core contains Log4J-2.14.1 >= 2.10.0
+[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/app/spring-boot-application.jar:BOOT-INF/lib/log4j-core-2.14.1.jar contains Log4J-2.14.1 >= 2.10.0
+[+] [CVE-2021-44832 (6.6)] Package /home/hynek/war.bak/apache-log4j-2.17.0-bin/log4j-core-2.17.0.jar contains Log4J-2.17.0 >= 2.17.0
+[*] [MAYBESAFE] Folder /home/hynek/war.bak/elastic/agent/org/apache/logging/log4j/core contains Log4J-2.12.1 <= 2.0-beta8 or core/lookup/JndiLookup.class has been removed
+[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/apache-log4j-2.14.0-bin/log4j-core-2.14.0.jar contains Log4J-2.14.0 >= 2.10.0
+[+] [CVE-2021-4104 (8.1)] Package /home/hynek/war.bak/HelloLogging/target/whoiscrawler/WEB-INF/lib/log4j-1.2.17.jar contains Log4J-1.2.17 <= 1.2.17, JMSAppender.class found
+[-] [SAFE] Package /home/hynek/war.bak/apache-log4j-2.12.4-bin/log4j-core-2.12.4.jar contains Log4J-2.12.4 == 2.12.4
+[-] [SAFE] Folder /home/hynek/war.bak/apache-log4j-2.12.4-bin/log4j-core-2.12.4/org/apache/logging/log4j/core contains Log4J-2.12.4 >= 2.12.4
+[+] [CVE-2021-44832 (6.6)] Folder /home/hynek/war.bak/apache-log4j-2.3.1/org/apache/logging/log4j/core contains Log4J-2.3.1 == 2.3.1
+[+] [CVE-2021-44832 (6.6)] Package /home/hynek/war.bak/apache-log4j-2.3.1-bin/log4j-core-2.3.1.jar contains Log4J-2.3.1 == 2.3.1
+[-] [SAFE] Package /home/hynek/war.bak/apache-log4j-2.17.1-bin/log4j-core-2.17.1.jar contains Log4J-2.17.1 >= 2.17.1
+[-] [SAFE] Folder /home/hynek/war.bak/apache-log4j-2.17.1-bin/log4j-core-2.17.1/org/apache/logging/log4j/core contains Log4J-2.17.1 == 2.17.1
+[I] Finished, scanned 26237 files in 2005 folders.
+[I] Found 40 vulnerable or unsafe log4j instances.
+
 ```
