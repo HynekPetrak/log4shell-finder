@@ -78,6 +78,13 @@ File system inputs: 1521824
 
 ## Changelog
 
+### Version 1.17-20220105
+
+- Reworked status reporting, now listing all CVEs relevant for specific version of log4j.
+- Added `--no-error` to suppress file system error messages (e.g. Access Denied, corrupted zip archive).
+- Suppressed `STRANGE` status reporting by default - `STRANGE` are mainly source packages, that do not contain class binaries.
+- Added `--strange` to report also `STRANGE` instances.
+
 ### Version 1.16-20211230
 
 - Fixed detection of 2.12.3 extracted
@@ -144,7 +151,7 @@ Either run from a python interpreter or use the Windows/Linux binaries from the 
 > just folders it can access to, not reporting permission denied errors.
 
 ```bash
-# ./test_log4shell.py --help
+PS C:\D\log4shell_finder> python3 .\test_log4shell.py --help
 usage:  Type "test_log4shell.py --help" for more information
         On Windows "test_log4shell.py c:\ d:\"
         On Linux "test_log4shell.py /"
@@ -165,6 +172,8 @@ optional arguments:
                         Save results to csv file.
   -f, --fix             Fix vulnerable by renaming JndiLookup.class into JndiLookup.vulne.
   -n, --no-file-log     By default a log4shell-finder.log is being created, this flag disbles it.
+  --no-errors           Suppress printing of file system errors.
+  --strange             Report also strange occurences with pom.properties without binary classes (e.g. source or test packages)
   -d, --debug           Increase verbosity, mainly for debugging purposes.
   -v, --version         show program's version number and exit
 ```
@@ -179,6 +188,49 @@ The binaries were produces with:
 pip install pyinstaller
 pyinstaller -F ./test_log4shell.py
 ```
+
+## Sample execution
+
+On Linux you may run like:
+```
+python3 ./test_log4shell.py / /opt --same-fs --no-errors
+```
+for MS Windows:
+```
+python3 .\test_log4shell.py c:\ d:\ --same-fs --no-errors
+```
+
+
+```bash
+PS C:\D\log4shell_finder> python3 .\test_log4shell.py c:\ --same-fs --no-errors
+
+ 8                  .8         8             8 8        d'b  o            8
+ 8                 d'8         8             8 8        8                 8
+ 8 .oPYo. .oPYo.  d' 8  .oPYo. 8oPYo. .oPYo. 8 8       o8P  o8 odYo. .oPYo8 .oPYo. oPYo.
+ 8 8    8 8    8 Pooooo Yb..   8    8 8oooo8 8 8        8    8 8' `8 8    8 8oooo8 8  `'
+ 8 8    8 8    8     8    'Yb. 8    8 8.     8 8        8    8 8   8 8    8 8.     8
+ 8 `YooP' `YooP8     8  `YooP' 8    8 `Yooo' 8 8        8    8 8   8 `YooP' `Yooo' 8
+ ..:.....::....8 ::::..::.....:..:::..:.....:....:::::::..:::....::..:.....::.....:..::::
+ :::::::::::ooP'.:::::::::::::::::::::::::::::::::   Version 1.17-20220105   ::::::::::::
+ :::::::::::...::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+ Parameters: .\test_log4shell.py c:\ --same-fs --no-errors
+ Host info: 'hostname': 'TESTHOST', 'fqdn': 'TESTHOST.example.com', 'ip': '10.0.0.1', 'system': 'Windows', 'release': '10', 'version': '10.0.19043', 'machine': 'AMD64', 'cpu': 'Intel64 Family 6 Model 142 Stepping 12, GenuineIntel'
+
+[+] [CVE-2021-4104 (8.1)]  Package c:\Program Files\Microsoft SQL Server\150\DTS\Extensions\Common\Jars\log4j-1.2.17.jar contains Log4J-1.2.17 <= 1.2.17, JMSAppender.class found
+[+] [CVE-2021-44832 (6.6), CVE-2021-45046 (9.0), CVE-2021-45105 (5.9)]  Package c:\Program Files\OWASP\Zed Attack Proxy\lib\log4j-core-2.15.0.jar contains Log4J-2.15.0 == 2.15.0
+[+] [CVE-2021-44228 (10.0), CVE-2021-44832 (6.6), CVE-2021-45046 (9.0), CVE-2021-45105 (5.9)]  Package c:\Users\testuser\Downloads\sqldeveloper-20.4.1.407.0006-x64.zip -> sqldeveloper/sqldeveloper/lib/log4j-core.jar contains Log4J-2.13.3 >= 2.10.0
+[+] [CVE-2021-44228 (10.0), CVE-2021-44832 (6.6), CVE-2021-45046 (9.0), CVE-2021-45105 (5.9)]  Package c:\Users\testuser\Downloads\sqldeveloper-20.4.1.407.0006-x64\sqldeveloper\sqldeveloper\lib\log4j-core.jar contains Log4J-2.13.3 >= 2.10.0
+
+
+ Scanned 1162924 files in 286638 folders.
+   Found 1 instances vulnerable to CVE-2021-4104 (8.1)
+   Found 2 instances vulnerable to CVE-2021-44228 (10.0)
+   Found 3 instances vulnerable to CVE-2021-44832 (6.6)
+   Found 3 instances vulnerable to CVE-2021-45046 (9.0)
+   Found 3 instances vulnerable to CVE-2021-45105 (5.9)
+```
+
 
 ## JSON output
 
@@ -246,72 +298,4 @@ myserver,10.0.0.1,myserver,Package,NOTOKAY,/home/hynek/.m2/repository/org/apache
 myserver,10.0.0.1,myserver,Package,CVE_2021_4104,/home/hynek/.m2/repository/log4j/log4j/1.2.17/log4j-1.2.17.jar,"contains Log4J-1.2.17 <= 1.2.17, JMSAppender.class found",1.2.17
 myserver,10.0.0.1,myserver,Package,CVE_2021_4104,/home/hynek/.m2/repository/log4j/log4j/1.2.12/log4j-1.2.12.jar,"contains Log4J-1.x <= 1.2.17, JMSAppender.class found",1.x
 myserver,10.0.0.1,myserver,Package,MAYBESAFE,/home/hynek/war/elastic-apm-java-aws-lambda-layer-1.28.1.zip:elastic-apm-agent-1.28.1.jar,contains Log4J-2.12.1 <= 2.0-beta8 (JndiLookup.class not present),2.12.1
-```
-
-## Sample run
-
-```bash
-hynek@myserver:~/log4shell-finder$ ./test_log4shell.py /home/hynek/war.bak/ --exclude-dirs /mnt --same-fs
-[I] Starting ./test_log4shell.py ver. 1.15-20211230
-[I] Parameters: ./test_log4shell.py /home/hynek/war.bak/ --exclude-dirs /mnt --same-fs
-[I] 'hostname': 'myserver', 'fqdn': 'myserver', 'ip': '10.0.0.1', 'system': 'Linux', 'release': '5.4.0-58-generic', 'version': '#64-Ubuntu SMP Wed Dec 9 08:16:25 UTC 2020', 'machine': 'x86_64', 'cpu': 'x86_64'
-[I] Analyzing paths (could take a long time).
-[-] [SAFE] Package /home/hynek/war.bak/apache-log4j-2.12.4-bin.zip:apache-log4j-2.12.4-bin/log4j-core-2.12.4.jar contains Log4J-2.12.4 == 2.12.4
-[*] [STRANGE] Package /home/hynek/war.bak/apache-log4j-2.12.4-bin.zip:apache-log4j-2.12.4-bin/log4j-core-2.12.4-sources.jar contains pom.properties for Log4J-2.12.4, but classes missing
-[*] [MAYBESAFE] Package /home/hynek/war.bak/elastic-apm-java-aws-lambda-layer-1.28.1.zip:elastic-apm-agent-1.28.1.jar contains Log4J-2.12.1 <= 2.0-beta8 or JndiLookup.class has been removed
-[*] [MAYBESAFE] Package /home/hynek/war.bak/elastic-apm-agent-1.28.1.jar contains Log4J-2.12.1 <= 2.0-beta8 or JndiLookup.class has been removed
-[+] [CVE-2021-44832 (6.6)] Package /home/hynek/war.bak/apache-log4j-2.12.3-bin.zip:apache-log4j-2.12.3-bin/log4j-core-2.12.3.jar contains Log4J-2.12.3 == 2.12.3
-[+] [CVE-2021-45046 (9.0)] Package /home/hynek/war.bak/apache-log4j-2.15.0-bin.zip:apache-log4j-2.15.0-bin/log4j-core-2.15.0.jar contains Log4J-2.15.0 == 2.15.0
-[-] [SAFE] Package /home/hynek/war.bak/apache-log4j-2.17.1-bin.zip:apache-log4j-2.17.1-bin/log4j-core-2.17.1.jar contains Log4J-2.17.1 >= 2.17.1
-[+] [CVE-2021-44832 (6.6)] Package /home/hynek/war.bak/apache-log4j-2.17.0-bin.zip:apache-log4j-2.17.0-bin/log4j-core-2.17.0.jar contains Log4J-2.17.0 >= 2.17.0
-[+] [CVE-2021-44832 (6.6)] Package /home/hynek/war.bak/apache-log4j-2.3.1-bin.zip:apache-log4j-2.3.1-bin/log4j-core-2.3.1.jar contains Log4J-2.3.1 == 2.3.1
-[-] [SAFE] Package /home/hynek/war.bak/apache-log4j-2.3.2-bin.zip:apache-log4j-2.3.2-bin/log4j-core-2.3.2.jar contains Log4J-2.3.2 == 2.3.2
-[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/spring-boot-application.jar:BOOT-INF/lib/log4j-core-2.14.1.jar contains Log4J-2.14.1 >= 2.10.0
-[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/apache-log4j-2.14.0-bin.zip:apache-log4j-2.14.0-bin/log4j-core-2.14.0.jar contains Log4J-2.14.0 >= 2.10.0
-[+] [CVE-2021-45046 (9.0)] Package /home/hynek/war.bak/apache-log4j-2.15.0-bin/log4j-core-2.15.0.jar contains Log4J-2.15.0 == 2.15.0
-[+] [CVE-2021-45046 (9.0)] Folder /home/hynek/war.bak/apache-log4j-2.15.0-bin/log4j-core-2.15.0/org/apache/logging/log4j/core contains Log4J-2.15.0 == 2.15.0
-[-] [SAFE] Package /home/hynek/war.bak/apache-log4j-2.3.2-bin/log4j-core-2.3.2.jar contains Log4J-2.3.2 == 2.3.2
-[-] [SAFE] Folder /home/hynek/war.bak/apache-log4j-2.3.2-bin/log4j-core-2.3.2/org/apache/logging/log4j/core contains Log4J-2.3.2 == 2.3.2
-[+] [CVE-2021-4104 (8.1)] Package /home/hynek/war.bak/log4j-samples/old-hits/log4j-1.1.3.jar contains Log4J-1.x <= 1.2.17, JMSAppender.class found
-[+] [CVE-2021-4104 (8.1)] Package /home/hynek/war.bak/log4j-samples/old-hits/log4j-1.2.17.jar contains Log4J-1.2.17 <= 1.2.17, JMSAppender.class found
-[*] [MAYBESAFE] Package /home/hynek/war.bak/log4j-samples/old-hits/log4j-core-2.0-beta2.jar contains Log4J-2.0-beta2 <= 2.0-beta8 or JndiLookup.class has been removed
-[+] [CVE-2021-4104 (8.1)] Folder /home/hynek/war.bak/log4j-samples/old-hits/log4j-1.2.17/org/apache/log4j contains Log4J-1.x <= 1.2.17, JMSAppender.class found
-[+] [CVE-2021-45046 (9.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/log4j-core-2.15.0.jar contains Log4J-2.15.0 == 2.15.0
-[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/log4j-core-2.9.1.jar contains Log4J-2.9.1 >= 2.0-beta9 (< 2.10.0)
-[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/log4j-core-2.10.0.zip contains Log4J-2.10.0 >= 2.10.0
-[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/log4j-core-2.0-beta9.jar contains Log4J-2.0-beta9 >= 2.0-beta9 (< 2.10.0)
-[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/log4j-core-2.10.0.jar contains Log4J-2.10.0 >= 2.10.0
-[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/uber/infinispan-embedded-query-8.2.12.Final.jar contains Log4J-2.5 >= 2.0-beta9 (< 2.10.0)
-[+] [CVE-2021-44228 (10.0)] Folder /home/hynek/war.bak/log4j-samples/true-hits/uber/expanded/org/apache/logging/log4j/core contains Log4J-2.5 >= 2.0-beta9 (< 2.10.0)
-[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/shaded/clt-1.0-SNAPSHOT.jar contains Log4J-2.14.1 >= 2.10.0
-[+] [CVE-2021-44228 (10.0)] Folder /home/hynek/war.bak/log4j-samples/true-hits/shaded/expanded/clt/shaded/l/core contains Log4J-2.x >= 2.10.0
-[+] [CVE-2021-44228 (10.0)] Folder /home/hynek/war.bak/log4j-samples/true-hits/exploded/2.12.1/org/apache/logging/log4j/core contains Log4J-2.12.1 >= 2.10.0
-[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/springboot-executable/spiff-0.0.1-SNAPSHOT.zip:WEB-INF/lib/log4j-core-2.10.0.jar contains Log4J-2.10.0 >= 2.10.0
-[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/springboot-executable/spiff-0.0.1-SNAPSHOT.jar:WEB-INF/lib/log4j-core-2.10.0.jar contains Log4J-2.10.0 >= 2.10.0
-[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/springboot-executable/spiff-0.0.1-SNAPSHOT.ear:WEB-INF/lib/log4j-core-2.10.0.jar contains Log4J-2.10.0 >= 2.10.0
-[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/log4j-samples/true-hits/springboot-executable/spiff-0.0.1-SNAPSHOT.war:WEB-INF/lib/log4j-core-2.10.0.jar contains Log4J-2.10.0 >= 2.10.0
-[+] [CVE-2021-45105 (5.9)] Package /home/hynek/war.bak/log4j-samples/false-hits/log4j-core-2.16.0.jar contains Log4J-2.16.0 == 2.16.0
-[+] [CVE-2021-45105 (5.9)] Package /home/hynek/war.bak/log4j-samples/false-hits/log4j-core-2.12.2.jar contains Log4J-2.12.2 == 2.12.2
-[+] [CVE-2021-44832 (6.6)] Package /home/hynek/war.bak/log4j-samples/false-hits/apache-log4j-2.17.0-bin.zip:apache-log4j-2.17.0-bin/log4j-core-2.17.0.jar contains Log4J-2.17.0 >= 2.17.0
-[+] [CVE-2021-44832 (6.6)] Package /home/hynek/war.bak/log4j-samples/false-hits/apache-log4j-2.17.0-bin/log4j-core-2.17.0.jar contains Log4J-2.17.0 >= 2.17.0
-[+] [CVE-2021-44832 (6.6)] Folder /home/hynek/war.bak/log4j-samples/false-hits/apache-log4j-2.17.0-bin/exploded/org/apache/logging/log4j/core contains Log4J-2.17.0 == 2.17.0
-[+] [CVE-2021-45105 (5.9)] Folder /home/hynek/war.bak/log4j-samples/false-hits/exploded/2.12.2/org/apache/logging/log4j/core contains Log4J-2.12.2 == 2.12.2
-[+] [CVE-2021-44832 (6.6)] Package /home/hynek/war.bak/apache-log4j-2.12.3-bin/log4j-core-2.12.3.jar contains Log4J-2.12.3 == 2.12.3
-[+] [CVE-2021-44832 (6.6)] Folder /home/hynek/war.bak/apache-log4j-2.12.3-bin/log4j-core-2.12.3/org/apache/logging/log4j/core contains Log4J-2.12.3 == 2.12.3
-[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/BOOT-INF/lib/log4j-core-2.14.1.jar contains Log4J-2.14.1 >= 2.10.0
-[+] [CVE-2021-44228 (10.0)] Folder /home/hynek/war.bak/BOOT-INF/lib/org/apache/logging/log4j/core contains Log4J-2.14.1 >= 2.10.0
-[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/app/spring-boot-application.jar:BOOT-INF/lib/log4j-core-2.14.1.jar contains Log4J-2.14.1 >= 2.10.0
-[+] [CVE-2021-44832 (6.6)] Package /home/hynek/war.bak/apache-log4j-2.17.0-bin/log4j-core-2.17.0.jar contains Log4J-2.17.0 >= 2.17.0
-[*] [MAYBESAFE] Folder /home/hynek/war.bak/elastic/agent/org/apache/logging/log4j/core contains Log4J-2.12.1 <= 2.0-beta8 or core/lookup/JndiLookup.class has been removed
-[+] [CVE-2021-44228 (10.0)] Package /home/hynek/war.bak/apache-log4j-2.14.0-bin/log4j-core-2.14.0.jar contains Log4J-2.14.0 >= 2.10.0
-[+] [CVE-2021-4104 (8.1)] Package /home/hynek/war.bak/HelloLogging/target/whoiscrawler/WEB-INF/lib/log4j-1.2.17.jar contains Log4J-1.2.17 <= 1.2.17, JMSAppender.class found
-[-] [SAFE] Package /home/hynek/war.bak/apache-log4j-2.12.4-bin/log4j-core-2.12.4.jar contains Log4J-2.12.4 == 2.12.4
-[-] [SAFE] Folder /home/hynek/war.bak/apache-log4j-2.12.4-bin/log4j-core-2.12.4/org/apache/logging/log4j/core contains Log4J-2.12.4 >= 2.12.4
-[+] [CVE-2021-44832 (6.6)] Folder /home/hynek/war.bak/apache-log4j-2.3.1/org/apache/logging/log4j/core contains Log4J-2.3.1 == 2.3.1
-[+] [CVE-2021-44832 (6.6)] Package /home/hynek/war.bak/apache-log4j-2.3.1-bin/log4j-core-2.3.1.jar contains Log4J-2.3.1 == 2.3.1
-[-] [SAFE] Package /home/hynek/war.bak/apache-log4j-2.17.1-bin/log4j-core-2.17.1.jar contains Log4J-2.17.1 >= 2.17.1
-[-] [SAFE] Folder /home/hynek/war.bak/apache-log4j-2.17.1-bin/log4j-core-2.17.1/org/apache/logging/log4j/core contains Log4J-2.17.1 == 2.17.1
-[I] Finished, scanned 26237 files in 2005 folders.
-[I] Found 40 vulnerable or unsafe log4j instances.
-
 ```

@@ -642,7 +642,7 @@ def process_file(filename, fix):
             with open(filename, "r+b" if fix else "rb") as f:
                 scan_archive(f, filename, fix)
     except Exception as ex:
-        log.error(f"Error processing {filename}: {ex}")
+        log.error(f"[E] Error processing {filename}: {ex}")
 
 
 process_file.files_checked = 0
@@ -652,6 +652,8 @@ def analyze_directory(f, blacklist, same_fs, fix):
     # f = os.path.realpath(f)
     if os.path.isdir(f):
         for (dirpath, dirnames, filenames) in os.walk(f, topdown=True):
+            if not os.path.isdir(dirpath):
+                continue
             if same_fs and not os.path.samefile(f, dirpath) and os.path.ismount(dirpath):
                 log.info(f"Skipping mount point: {dirpath}")
                 dirnames.clear()
@@ -685,7 +687,7 @@ def get_ip():
     return IP
 
 
-def configure_logging(debug, no_file_log):
+def configure_logging(debug, no_file_log, no_errors):
     global log_name
 
     if debug:
@@ -714,6 +716,9 @@ def configure_logging(debug, no_file_log):
     )
     ch.setFormatter(formatter)
     log.addHandler(ch)
+    
+    if no_errors:
+        log.addFilter(lambda record: record.levelno != logging.ERROR)
 
 
 def print_stats_and_exit():
@@ -788,6 +793,8 @@ def main():
                         help=f'Fix vulnerable by renaming JndiLookup.class into JndiLookup.vulne.')
     parser.add_argument('-n', '--no-file-log', action="store_true",
                         help=f'By default a {log_name} is being created, this flag disbles it.')
+    parser.add_argument('--no-errors', action="store_true",
+                        help=f'Suppress printing of file system errors.')
     parser.add_argument('--strange', action="store_true",
                         help='Report also strange occurences with pom.properties without binary classes (e.g. source or test packages)')
     parser.add_argument('-d', '--debug', action="store_true",
@@ -802,7 +809,7 @@ def main():
     if args.strange:
         report_strange = True
 
-    configure_logging(args.debug, args.no_file_log)
+    configure_logging(args.debug, args.no_file_log, args.no_errors)
 
     args.exclude_dirs = [s.lower() for s in args.exclude_dirs]
 
@@ -814,7 +821,7 @@ def main():
     log.info(
         " 8 .oPYo. .oPYo.  d' 8  .oPYo. 8oPYo. .oPYo. 8 8       o8P  o8 odYo. .oPYo8 .oPYo. oPYo. ")
     log.info(
-        " 8 8    8 8    8 Pooooo Yb..   8    8 8oooo8 8 8 ooooo  8    8 8' `8 8    8 8oooo8 8  `' ")
+        " 8 8    8 8    8 Pooooo Yb..   8    8 8oooo8 8 8        8    8 8' `8 8    8 8oooo8 8  `' ")
     log.info(
         " 8 8    8 8    8     8    'Yb. 8    8 8.     8 8        8    8 8   8 8    8 8.     8     ")
     log.info(
