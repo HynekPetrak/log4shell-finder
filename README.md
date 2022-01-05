@@ -1,5 +1,7 @@
 # log4shell-finder - Fastest file system scanner for log4j instances
 
+![](log4shell-finder-mswin.png)
+
 Python port of https://github.com/mergebase/log4j-detector log4j-detector is copyright (c) 2021 - MergeBase Software Inc. https://mergebase.com/
 
 > *Motivation for porting to Python was to improve perfomance, reduce memory consumption and increase code readability. See below section about [performance](#performance) comparism.*
