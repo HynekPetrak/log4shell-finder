@@ -77,14 +77,13 @@ File system inputs: 1521824
  File system inputs: 798528
 ```
 
-
 ## Changelog
 
 ### Version 1.18-20220107
 
 - Code readability and performance improvments
 - Added parameter `--file-log [LOGFILE]` to enable logging to log file, default is log4shell-finder.log.
-- Added parameter  `--progress [SEC]` to enable progress ireporting every SEC seconds, default is 10 seconds.
+- Added parameter  `--progress [SEC]` to enable progress reporting every SEC seconds, default is 10 seconds.
 
 
 ### Version 1.17-20220105
