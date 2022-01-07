@@ -32,6 +32,7 @@ Argument `--fix` attempts to rename instances of `JndiLookup.class` into `JndiLo
 from loading. Within Java archives it's done via in place rename, does not require re-zipping of the archive and is 
 instant fast.
 
+> Binaries are available for Linux 64bit, MS Windows 64bit and 32bit - see Releases
 
 ## Performance
 
