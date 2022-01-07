@@ -80,6 +80,12 @@ File system inputs: 1521824
 
 ## Changelog
 
+### Version 1.19-20220107
+
+- Fixed searching within extracted log4j folders on Windows
+- removed mmap access due to incompatibility with Windows.
+
+
 ### Version 1.18-20220107
 
 - Code readability and performance improvments
