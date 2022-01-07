@@ -80,6 +80,13 @@ File system inputs: 1521824
 
 ## Changelog
 
+### Version 1.18-20220107
+
+- Code readability and performance improvments
+- Added parameter `--file-log [LOGFILE]` to enable logging to log file, default is log4shell-finder.log.
+- Added parameter  `--progress [SEC]` to enable progress ireporting every SEC seconds, default is 10 seconds.
+
+
 ### Version 1.17-20220105
 
 - Reworked status reporting, now listing all CVEs relevant for specific version of log4j.
@@ -173,7 +180,8 @@ optional arguments:
   -c [FILE], --csv-out [FILE]
                         Save results to csv file.
   -f, --fix             Fix vulnerable by renaming JndiLookup.class into JndiLookup.vulne.
-  -n, --no-file-log     By default a log4shell-finder.log is being created, this flag disbles it.
+  --file-log [LOGFILE]  Enable logging to log file, default is log4shell-finder.log.
+  --progress [SEC]      Report progress every SEC seconds, default is 10 seconds.
   --no-errors           Suppress printing of file system errors.
   --strange             Report also strange occurences with pom.properties without binary classes (e.g. source or test packages)
   -d, --debug           Increase verbosity, mainly for debugging purposes.
@@ -202,7 +210,7 @@ for MS Windows:
 python3 .\test_log4shell.py c:\ d:\ --same-fs --no-errors
 ```
 
-
+On MS Windows:
 ```bash
 PS C:\D\log4shell_finder> python3 .\test_log4shell.py c:\ --same-fs --no-errors
 
@@ -231,6 +239,55 @@ PS C:\D\log4shell_finder> python3 .\test_log4shell.py c:\ --same-fs --no-errors
    Found 3 instances vulnerable to CVE-2021-44832 (6.6)
    Found 3 instances vulnerable to CVE-2021-45046 (9.0)
    Found 3 instances vulnerable to CVE-2021-45105 (5.9)
+```
+Scanning Kali, with progress reported every second and excluded zip-bomb folder:
+```
+root@kali:/home/hynek/log4shell-finder# python3 test_log4shell.py / --same-fs --no-errors --progress 1  --exclude-dirs /usr/share/seclists/Payloads/Zip-Bombs/
+
+ 8                  .8         8             8 8        d'b  o            8
+ 8                 d'8         8             8 8        8                 8
+ 8 .oPYo. .oPYo.  d' 8  .oPYo. 8oPYo. .oPYo. 8 8       o8P  o8 odYo. .oPYo8 .oPYo. oPYo.
+ 8 8    8 8    8 Pooooo Yb..   8    8 8oooo8 8 8        8    8 8' `8 8    8 8oooo8 8  `'
+ 8 8    8 8    8     8    'Yb. 8    8 8.     8 8        8    8 8   8 8    8 8.     8
+ 8 `YooP' `YooP8     8  `YooP' 8    8 `Yooo' 8 8        8    8 8   8 `YooP' `Yooo' 8
+ ..:.....::....8 ::::..::.....:..:::..:.....:....:::::::..:::....::..:.....::.....:..::::
+ :::::::::::ooP'.:::::::::::::::::::::::::::::::::   Version 1.18-20220106   ::::::::::::
+ :::::::::::...::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+ Parameters: test_log4shell.py / --same-fs --no-errors --progress 1 --exclude-dirs /usr/share/seclists/Payloads/Zip-Bombs/
+ Host info: 'hostname': 'kali', 'fqdn': 'kali', 'ip': '10.0.0.2', 'system': 'Linux', 'release': '5.14.0-kali4-amd64', 'version': '#1 SMP Debian 5.14.16-1kali1 (2021-11-05)', 'machine': 'x86_64', 'cpu': ''
+
+Skipping mount point: /data
+Skipping mount point: /home
+Skipping mount point: /dev
+Skipping mount point: /sys
+[+] [CVE-2021-4104 (8.1)]  Package /usr/share/paros/paros.jar contains Log4J-1.x <= 1.2.17, JMSAppender.class found
+ After 1 secs, scanned 119762 files in 4853 folders.
+        Currently at: /usr/share/icons/hicolor/48x48/apps/kali-jd-gui.png
+Skipping blaclisted folder: /usr/share/seclists/Payloads/Zip-Bombs
+ After 2 secs, scanned 190067 files in 12980 folders.
+        Currently at: /usr/share/plasma/desktoptheme/kali/metadata.desktop
+[+] [CVE-2021-44228 (10.0), CVE-2021-44832 (6.6), CVE-2021-45046 (9.0), CVE-2021-45105 (5.9)]  Package /usr/share/jsql-injection/jsql-injection.jar contains Log4J-2.14.0 >= 2.10.0
+ After 3 secs, scanned 221233 files in 17725 folders.
+        Currently at: /usr/share/maltego/maltego-ui/modules/com-paterva-maltego-transform-finder.jar
+[+] [CVE-2021-44228 (10.0), CVE-2021-44832 (6.6), CVE-2021-45046 (9.0), CVE-2021-45105 (5.9)]  Package /usr/share/zaproxy/lib/log4j-core-2.14.1.jar contains Log4J-2.14.1 >= 2.10.0
+[+] [CVE-2021-4104 (8.1)]  Package /usr/share/javasnoop/lib/log4j-1.2.16.jar contains Log4J-1.2.16 <= 1.2.17, JMSAppender.class found
+ After 7 secs, scanned 233394 files in 18705 folders.
+        Currently at: /usr/share/images/desktop-base/login-background.svg
+ After 8 secs, scanned 301417 files in 27952 folders.
+        Currently at: /usr/lib/python3/dist-packages/faraday_plugins/plugins/repo/dirb/plugin.py
+ After 9 secs, scanned 342342 files in 34421 folders.
+        Currently at: /usr/lib/jvm/java-8-openjdk-amd64/jre/lib/jexec
+Skipping mount point: /run
+Skipping mount point: /proc
+
+
+ Scanned 379253 files in 37742 folders in 9.9 seconds.
+   Found 2 instances vulnerable to CVE-2021-4104 (8.1)
+   Found 2 instances vulnerable to CVE-2021-44228 (10.0)
+   Found 2 instances vulnerable to CVE-2021-44832 (6.6)
+   Found 2 instances vulnerable to CVE-2021-45046 (9.0)
+   Found 2 instances vulnerable to CVE-2021-45105 (5.9)
 ```
 
 
