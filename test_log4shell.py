@@ -529,16 +529,16 @@ def check_class(class_file, fix=False):
 
     fix_msg = ""
     hasJdbcJndiDisabled = False
-    fn = log4j_dir.joinpath(JDBC_DSCS)
-    if check_path_exists(fn):
+    fn = check_path_exists(log4j_dir.joinpath(JDBC_DSCS))
+    if fn:
         with open(fn, "rb") as f:
             with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ) as mm:
                 if mm.find(IS_CVE_2021_44832_SAFE) >= 0:
                     hasJdbcJndiDisabled = True
 
     if not check_path_exists(log4j_dir.joinpath(NOSQL_APPENDER)):
-        fn = log4j_dir.joinpath(JNDIMANAGER)
-        if check_path_exists(fn):
+        fn = check_path_exists(log4j_dir.joinpath(JNDIMANAGER))
+        if fn:
             with open(fn, "rb") as f:
                 with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ) as mm:
                     if mm.find(IN_2_3_1) >= 0:
@@ -565,8 +565,8 @@ def check_class(class_file, fix=False):
         return
     else:
         # Check for 2.12.2...
-        fn = log4j_dir.joinpath(JNDILOOKUP)
-        if check_path_exists(fn):
+        fn = check_path_exists(log4j_dir.joinpath(JNDILOOKUP))
+        if fn:
             with open(fn, "rb") as f:
                 with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ) as mm:
                     if mm.find(IN_2_12_2) == -1:
@@ -598,8 +598,8 @@ def check_class(class_file, fix=False):
                                          version, container=Container.FOLDER)
                                 return
 
-        fn = log4j_dir.joinpath(JNDIMANAGER)
-        if check_path_exists(fn):
+        fn = check_path_exists(log4j_dir.joinpath(JNDIMANAGER))
+        if fn:
             with open(fn, "rb") as f:
                 with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ) as mm:
                     if mm.find(IN_2_16_0) >= 0:
