@@ -208,6 +208,8 @@ If you want to build a 32bit version, install a 32bit Python interpreter, instal
 ```
 C:\Users\SESA70525\AppData\Local\Programs\Python\Python38-32\python.exe -m pip install pyinstaller
 
+```
+
 and then:
 ```
  C:\Users\SESA70525\AppData\Local\Programs\Python\Python38-32\Scripts\pyinstaller.exe -n test_log4shell-mswin32 -F test_log4shell.py 
