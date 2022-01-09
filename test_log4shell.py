@@ -769,14 +769,15 @@ def print_stats_and_exit():
 
     for k in sorted(cnt.keys()):
         v = cnt[k]
+        s = "s" if v > 1 else ""
         if "CVE" in k:
-            log.info(f"   Found {v} instances vulnerable to {k}")
+            log.info(f"   Found {v} instance{s} vulnerable to {k}")
             hits = True
         elif "NOJNDILOOKUP" == k:
             log.info(
-                f"   Found {v} instances with JndiLookup.class removed.")
+                f"   Found {v} instance{s} with JndiLookup.class removed.")
         else:
-            log.info(f"   Found {v} instances with status: {k}")
+            log.info(f"   Found {v} instance{s} with status: {k}")
 
     log.info("")
     if hits:
