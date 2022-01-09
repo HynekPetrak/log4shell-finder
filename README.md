@@ -80,6 +80,12 @@ File system inputs: 1521824
 
 ## Changelog
 
+### Version 1.19-20220107
+
+- Fixed searching within extracted log4j folders on Windows
+- removed mmap access due to incompatibility with Windows.
+
+
 ### Version 1.18-20220107
 
 - Code readability and performance improvments
@@ -201,6 +207,8 @@ pyinstaller -F ./test_log4shell.py
 If you want to build a 32bit version, install a 32bit Python interpreter, install pyinstaller with:
 ```
 C:\Users\SESA70525\AppData\Local\Programs\Python\Python38-32\python.exe -m pip install pyinstaller
+
+```
 
 and then:
 ```
