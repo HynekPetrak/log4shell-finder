@@ -28,9 +28,12 @@ It can also handle shaded class files - extensions .esclazz (elastic) and .class
 Java archive extensions searched: `.zip`, `.jar`, `.war`, `.ear`, `.aar`, `.jpi`,
 `.hpi`, `.rar`, `.nar`, `.wab`, `.eba`, `.ejb`, `.sar`, `.apk`, `.par`, `.kar`
 
+> **Warning** `--fix` feature is experimental, use it on your own risk, make sure you backup your jar files prior using it.
+
 Argument `--fix` attempts to rename instances of `JndiLookup.class` into `JndiLookup.vulne`, thus preventing the class
 from loading. Within Java archives it's done via in place rename, does not require re-zipping of the archive and is 
 instant fast.
+
 
 > Binaries are available for Linux 64bit, MS Windows 64bit and 32bit - see Releases
 
