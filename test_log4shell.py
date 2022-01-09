@@ -11,11 +11,12 @@ import socket
 import sys
 import time
 import zipfile
+import concurrent.futures
 from enum import Flag, Enum, auto
 from shlex import shlex
 from collections import Counter
 
-VERSION = "1.19-20220107"
+VERSION = "1.20-20220109"
 
 DEFAULT_LOG_NAME = 'log4shell-finder.log'
 
@@ -25,7 +26,6 @@ CLASS_EXTS = (".class", ".esclazz", ".classdata")
 ZIP_EXTS = (".zip", ".jar", ".war", ".ear", ".aar", ".jpi",
             ".hpi", ".rar", ".nar", ".wab", ".eba", ".ejb", ".sar",
             ".apk", ".par", ".kar", )
-
 
 DELIMITER = " -> "
 
@@ -64,6 +64,7 @@ def get_class_names(base):
 
 
 CLASS_VARIANTS = {cls: get_class_names(cls) for cls in CLASSES}
+CLASS_VARIANTS_NATIVE = {k: tuple([str(pathlib.PurePath(a)) for a in v]) for k,v in CLASS_VARIANTS.items()}
 
 # This occurs in "JndiManager.class" in 2.15.0
 IN_2_15_0 = b"Invalid JNDI URI - {}"
@@ -74,8 +75,8 @@ IN_2_16_0 = b"log4j2.enableJndi"
 # This occurs in "JndiLookup.class" in 2.17.0
 IN_2_17_0 = b"JNDI must be enabled by setting log4j2.enableJndiLookup=true"
 
-# This occurs in "JndiLookup.class" before 2.12.2
-IN_2_12_2 = b"Error looking up JNDI resource [{}]."
+# This occurs in "JndiLookup.class" other than 2.12.2
+NOT_IN_2_12_2 = b"Error looking up JNDI resource [{}]."
 
 # This occurs in "JndiManager.class" in 2.3.1
 IN_2_3_1 = b"Unsupported JNDI URI - {}"
@@ -206,8 +207,8 @@ def parse_kv_pairs(text, item_sep=None, value_sep=".=-"):
     return dict(word.split("=", maxsplit=1) for word in lexer)
 
 
-def scan_archive(f, path, fix=False):
-    global PROT_RO, PROT_RW
+def scan_archive(f, path):
+    global args
     log.debug(f"Scanning {path}")
     with zipfile.ZipFile(f, mode="r") as zf:
         nl = zf.namelist()
@@ -236,13 +237,13 @@ def scan_archive(f, path, fix=False):
             fnl = fn.lower()
             if fnl.endswith(ZIP_EXTS):
                 with zf.open(fn, "r") as inner_zip:
-                    scan_archive(inner_zip, path+DELIMITER+fn, fix)
+                    scan_archive(inner_zip, path+DELIMITER+fn)
             elif fnl.endswith("log4j-core/pom.properties"):
                 pom_path = fn
             elif fnl.endswith("log4j/pom.properties") and not pom_path:
                 pom_path = fn
             elif not fnl.endswith(CLASS_EXTS):
-                pass
+                continue
             elif fn.endswith(CLASS_VARIANTS[JDBC_DSCS]):
                 with zf.open(fn, "r") as inner_class:
                     class_content = inner_class.read()
@@ -255,7 +256,7 @@ def scan_archive(f, path, fix=False):
                     class_content = inner_class.read()
                     if class_content.find(IN_2_17_0) >= 0:
                         isLog4j2_17 = True
-                    elif class_content.find(IN_2_12_2) >= 0:
+                    elif class_content.find(NOT_IN_2_12_2) >= 0:
                         isLog4j2_12_2_override = True
                     else:
                         isLog4j2_12_2 = True
@@ -410,7 +411,7 @@ def scan_archive(f, path, fix=False):
         status = Status.V2_0_BETA9  # CVE_2021_44228
 
     fix_msg = ""
-    if (status & (Status.CVE_2021_45046 | Status.CVE_2021_44228)) and fix:
+    if (status & (Status.CVE_2021_45046 | Status.CVE_2021_44228)) and args.fix:
         if not jndilookup_path:
             log.info(f"[W] Cannot fix {path}, JndiLookup.class not found")
         elif DELIMITER in path:
@@ -479,13 +480,12 @@ def fix_jndilookup_class(fn):
     return ""
 
 
-def check_class(class_file, fix=False):
-    global PROT_RO, PROT_RW
+def check_class(class_file):
+    global args
     parent = pathlib.PurePath(class_file).parent
-    class_posix_path = str(pathlib.PurePath(class_file).as_posix())
 
-    if class_posix_path.endswith(CLASS_VARIANTS[DRFAPPENDER]):
-        if check_path_exists(parent.joinpath(JMSAPPENDER)):
+    if class_file.endswith(CLASS_VARIANTS_NATIVE[DRFAPPENDER]):
+        if check_path_exists(parent, JMSAPPENDER):
             log_item(parent, Status.V1_2_17,  # CVE_2021_4104,
                      "contains Log4J-1.x <= 1.2.17, JMSAppender.class found",
                      container=Container.FOLDER)
@@ -496,7 +496,7 @@ def check_class(class_file, fix=False):
                      container=Container.FOLDER)
             return
 
-    if not class_posix_path.endswith(CLASS_VARIANTS[LOGEVENT]):
+    if not class_file.endswith(CLASS_VARIANTS_NATIVE[LOGEVENT]):
         return
 
     log.debug(f"Match on {class_file}")
@@ -555,7 +555,7 @@ def check_class(class_file, fix=False):
                         return
 
         status = Status.V2_0_BETA9  # CVE_2021_44228
-        if fix:
+        if args.fix:
             fix_msg = fix_jndilookup_class(jndilookup_path)
             if fix_msg:
                 status |= Status.FIXED
@@ -570,7 +570,7 @@ def check_class(class_file, fix=False):
         if fn:
             with open(fn, "rb") as f:
                 fcontent = f.read()
-                if fcontent.find(IN_2_12_2) == -1:
+                if fcontent.find(NOT_IN_2_12_2) == -1:
                     log_item(parent, Status.V2_12_2,  # CVE_2021_45105,
                                 f"{msg} == 2.12.2",
                                 version, container=Container.FOLDER)
@@ -610,7 +610,7 @@ def check_class(class_file, fix=False):
                     return
                 elif fcontent.find(IN_2_15_0) >= 0:
                     status = Status.V2_15_0  # CVE_2021_45046
-                    if fix:
+                    if args.fix:
                         fix_msg = fix_jndilookup_class(jndilookup_path)
                         if fix_msg:
                             status |= Status.FIXED
@@ -620,7 +620,7 @@ def check_class(class_file, fix=False):
                     return
 
     status = Status.V2_10_0  # CVE_2021_44228
-    if fix:
+    if args.fix:
         fix_msg = fix_jndilookup_class(jndilookup_path)
         if fix_msg:
             status |= Status.FIXED
@@ -631,19 +631,23 @@ def check_class(class_file, fix=False):
     return
 
 
-def process_file(filename, fix):
+def process_file(dirpath, filename):
+    global args
     process_file.files_checked += 1
+    fullname = filename
     try:
         ft = get_file_type(filename)
         if ft == FileType.OTHER:
             return
-        elif ft == FileType.CLASS:
-            check_class(filename, fix)
+        fullname = os.path.join(dirpath, filename)
+        if ft == FileType.CLASS:
+            check_class(fullname)
         elif ft == FileType.ZIP:
-            with open(filename, "r+b" if fix else "rb") as f:
-                scan_archive(f, filename, fix)
+            with open(fullname, "r+b" if args.fix else "rb") as f:
+                scan_archive(f, fullname)
+        return fullname
     except Exception as ex:
-        log.error(f"[E] Error processing {filename}: {ex}")
+        log.error(f"[E] Error processing {fullname}: {ex}")
 
 
 process_file.files_checked = 0
@@ -666,13 +670,14 @@ report_progress.last_progress = time.time()
 report_progress.start_time = time.time()
 
 
-def analyze_directory(f, blacklist, same_fs, fix, progress):
+def analyze_directory(f, blacklist, progress):
+    global args
     # f = os.path.realpath(f)
     if os.path.isdir(f):
         for (dirpath, dirnames, filenames) in os.walk(f, topdown=True):
             if not os.path.isdir(dirpath):
                 continue
-            if same_fs and not os.path.samefile(f, dirpath) and os.path.ismount(dirpath):
+            if args.same_fs and not os.path.samefile(f, dirpath) and os.path.ismount(dirpath):
                 log.info(f"Skipping mount point: {dirpath}")
                 dirnames.clear()
                 continue
@@ -681,12 +686,15 @@ def analyze_directory(f, blacklist, same_fs, fix, progress):
                 dirnames.clear()
                 continue
             analyze_directory.dirs_checked += 1
-            for filename in filenames:
-                fullname = os.path.join(dirpath, filename)
-                report_progress(progress, fullname)
-                process_file(fullname, fix)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+                future_to_fn = []
+                for filename in filenames:
+                    future_to_fn.append(executor.submit(process_file, dirpath, filename))
+                for future in concurrent.futures.as_completed(future_to_fn):
+                    fullname = future.result()
+                    report_progress(progress, fullname)
     elif os.path.isfile(f):
-        process_file(f, fix)
+        process_file("", f)
     return
 
 
@@ -905,11 +913,9 @@ def main():
             continue
         if f == "-":
             for line in sys.stdin:
-                analyze_directory(line.rstrip("\r\n"),
-                                  blacklist, args.same_fs, args.fix, progress)
+                analyze_directory(line.rstrip("\r\n"), blacklist, progress)
         else:
-            analyze_directory(f, blacklist,
-                              args.same_fs, args.fix, progress)
+            analyze_directory(f, blacklist, progress)
 
     log.info("")
 
