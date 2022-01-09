@@ -2,7 +2,7 @@
 
 ![](log4shell-finder-mswin.png)
 
-Python port of https://github.com/mergebase/log4j-detector log4j-detector is copyright (c) 2021 - MergeBase Software Inc. https://mergebase.com/
+Python port of https://github.com/mergebase/log4j-detector log4j-detector is copyright (C) Copyright 2021 Mergebase Software Inc. https://mergebase.com/  Licensed via GPLv3.
 
 > *Motivation for porting to Python was to improve perfomance, reduce memory consumption and increase code readability. See below section about [performance](#performance) comparism.*
 > 
