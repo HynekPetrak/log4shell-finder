@@ -16,7 +16,7 @@ from enum import Flag, Enum, auto
 from shlex import shlex
 from collections import Counter
 
-VERSION = "1.20-20220109"
+VERSION = "1.21-20220109"
 
 DEFAULT_LOG_NAME = 'log4shell-finder.log'
 
@@ -93,6 +93,7 @@ class FileType(Enum):
 
 class Status(Flag):
     FIXED = auto()
+    CANNOTFIX = auto()
     NOTOKAY = auto()
     OLD = auto()
     OLDUNSAFE = auto()
@@ -144,6 +145,8 @@ def get_status_text(status):
         vulns.append("CVE-2021-4104 (8.1)")
     if status & Status.FIXED:
         vulns.append("FIXED")
+    if status & Status.CANNOTFIX:
+        vulns.append("CANNOTFIX")
     if status & Status.NOJNDILOOKUP:
         vulns.append("NOJNDILOOKUP")
     if status & Status.SAFE:
@@ -414,13 +417,16 @@ def scan_archive(f, path):
     if (status & (Status.CVE_2021_45046 | Status.CVE_2021_44228)) and args.fix:
         if not jndilookup_path:
             log.info(f"[W] Cannot fix {path}, JndiLookup.class not found")
+            status |= Status.CANNOTFIX
         elif DELIMITER in path:
             log.info(f"[W] Cannot fix {path}, nested archive")
+            status |= Status.CANNOTFIX
         else:
             suffix_len = len(jndilookup_path.suffix)
             if suffix_len < 3:
                 log.info(
                     f"[W] Cannot fix {path}, suffix of {jndilookup_path} too short - {suffix_len}")
+                status |= Status.CANNOTFIX
             else:
                 suffix_replacement = ".vulnerable"
                 if suffix_len > len(suffix_replacement):
@@ -429,6 +435,7 @@ def scan_archive(f, path):
                 new_fn = jndilookup_path.with_suffix(
                     ".vulnerable"[:suffix_len])
                 fix_msg = f", fixing, {jndilookup_path} has been renamed to {new_fn.name}"
+                f.seek(0)
                 fcontent = f.read()
                 bstr_from = str(jndilookup_path).encode('utf-8')
                 bstr_to = str(new_fn).encode('utf-8')
@@ -447,11 +454,6 @@ def scan_archive(f, path):
                 status |= Status.FIXED
 
     log_item(path, status, buf + fix_msg, version, Container.PACKAGE)
-
-    if status & Status.VULNERABLE:
-        return
-    else:
-        return
 
 
 def check_path_exists(folder, file_name,  mangle=True):

@@ -36,66 +36,65 @@ instant fast.
 
 ## Performance
 
-Performance measured on a home folder with 161729 files in 36494 folders.
-log4shell-finder **reduces runtime by 60%, memory consumption by 90% and file system utilization by 98%**.
+log4shell finder is optimized for performance and log memory footprint.
+
+**Updated on 9.1.2022**, performance measured on a directory with 26237 files in 2005 folders.
+
+> Runtime reduced by half, memory consumtion by 2/3, file system reads byt at least 90%
 
 ### log4shell-finder (this tool)
-```
-Command being timed: "./test_log4shell.py /home/hynek --exclude-dirs /mnt --same-fs --csv-out --json-out"
-User time (seconds): 16.41
-System time (seconds): 3.65
-Percent of CPU this job got: 66%
-Elapsed (wall clock) time (h:mm:ss or m:ss): 0:30.29
-Maximum resident set size (kbytes): 37204
-Voluntary context switches: 588
-Involuntary context switches: 898
-File system inputs: 25896
+```yaml
+Command being timed: "./test_log4shell.py /home/hynek/war/ --exclude-dirs /mnt --same-fs"
+User time (seconds): 15.05
+System time (seconds): 1.91
+Percent of CPU this job got: 127%
+Elapsed (wall clock) time (h:mm:ss or m:ss): 0:13.27
+Maximum resident set size (kbytes): 81616
+File system inputs: 968
 ```
 
 ### log4j-detector (https://github.com/mergebase/log4j-detector)
-```
-Command being timed: "java -jar log4j-detector-2021.12.20.jar /home/hynek/"
-User time (seconds): 36.65
-System time (seconds): 7.69
-Percent of CPU this job got: 55%
-Elapsed (wall clock) time (h:mm:ss or m:ss): 1:20.27
-Maximum resident set size (kbytes): 277008
-Voluntary context switches: 10288
-Involuntary context switches: 8211
-File system inputs: 1521824
+```yaml
+Command being timed: "java -jar log4j-detector-latest.jar /home/hynek/war"
+User time (seconds): 30.56
+System time (seconds): 1.39
+Percent of CPU this job got: 113%
+Elapsed (wall clock) time (h:mm:ss or m:ss): 0:28.26
+Maximum resident set size (kbytes): 214116
+File system inputs: 14416
 ```
 
 ### log4j2-scan (https://github.com/logpresso/CVE-2021-44228-Scanner)
-```
- Command being timed: "./log4j2-scan /home/hynek --scan-log4j1 --scan-zip"
- User time (seconds): 22.80
- System time (seconds): 4.79
- Percent of CPU this job got: 39%
- Elapsed (wall clock) time (h:mm:ss or m:ss): 1:09.35
- Maximum resident set size (kbytes): 426808
- Voluntary context switches: 19551
- Involuntary context switches: 19800
- File system inputs: 798528
+```yaml
+Command being timed: "./log4j2-scan /home/hynek/war --scan-log4j1 --scan-zip"
+User time (seconds): 52.05
+System time (seconds): 25.32
+Percent of CPU this job got: 88%
+Elapsed (wall clock) time (h:mm:ss or m:ss): 1:27.86
+Maximum resident set size (kbytes): 593080
+File system inputs: 215416
 ```
 
 ## Changelog
 
-### Version 1.20-20220109
+### Version 1.21-20220109
 
-- performance improvement via multithreaded scanning
+- Fixed bug: `--fix` command in version 1.19 and 1.20 could corrupt `.jar` archives. 
 
-### Version 1.19-20220107
+### Version 1.20-20220109 (DO NOT USE)
+
+- Performance improvement via multithreaded scanning
+
+### Version 1.19-20220107 (DO NOT USE)
 
 - Fixed searching within extracted log4j folders on Windows
 - removed mmap access due to incompatibility with Windows.
-
 
 ### Version 1.18-20220107
 
 - Code readability and performance improvments
 - Added parameter `--file-log [LOGFILE]` to enable logging to log file, default is log4shell-finder.log.
 - Added parameter  `--progress [SEC]` to enable progress reporting every SEC seconds, default is 10 seconds.
-
 
 ### Version 1.17-20220105
 
