@@ -80,6 +80,10 @@ File system inputs: 1521824
 
 ## Changelog
 
+### Version 1.20-20220109
+
+- performance improvement via multithreaded scanning
+
 ### Version 1.19-20220107
 
 - Fixed searching within extracted log4j folders on Windows
