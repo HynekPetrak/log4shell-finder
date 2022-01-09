@@ -88,7 +88,7 @@ File system inputs: 215416
 ### Version 1.19-20220107 (DO NOT USE)
 
 - Fixed searching within extracted log4j folders on Windows
-- removed mmap access due to incompatibility with Windows.
+- Removed mmap access due to incompatibility with Windows.
 
 ### Version 1.18-20220107
 
