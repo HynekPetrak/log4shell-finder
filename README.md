@@ -39,7 +39,7 @@ instant fast.
 
 ## Performance
 
-log4shell finder is optimized for performance and log memory footprint.
+log4shell finder is optimized for performance and low memory footprint.
 
 **Updated on 9.1.2022**, performance measured on a directory with 26237 files in 2005 folders.
 
