@@ -36,6 +36,8 @@ instant fast.
 
 
 > Binaries are available for Linux 64bit, MS Windows 64bit and 32bit - see Releases
+> 
+> Minimum supported Python version is 3.6 
 
 ## Performance
 
