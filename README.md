@@ -2,7 +2,7 @@
 
 ![](log4shell-finder-mswin.png)
 
-Python port of https://github.com/mergebase/log4j-detector log4j-detector is copyright (c) 2021 - MergeBase Software Inc. https://mergebase.com/
+Python port of https://github.com/mergebase/log4j-detector log4j-detector is copyright (C) Copyright 2021 Mergebase Software Inc. https://mergebase.com/  Licensed via GPLv3.
 
 > *Motivation for porting to Python was to improve perfomance, reduce memory consumption and increase code readability. See below section about [performance](#performance) comparism.*
 > 
@@ -28,9 +28,12 @@ It can also handle shaded class files - extensions .esclazz (elastic) and .class
 Java archive extensions searched: `.zip`, `.jar`, `.war`, `.ear`, `.aar`, `.jpi`,
 `.hpi`, `.rar`, `.nar`, `.wab`, `.eba`, `.ejb`, `.sar`, `.apk`, `.par`, `.kar`
 
+> **Warning** `--fix` feature is experimental, use it on your own risk, make sure you backup your jar files prior using it.
+
 Argument `--fix` attempts to rename instances of `JndiLookup.class` into `JndiLookup.vulne`, thus preventing the class
 from loading. Within Java archives it's done via in place rename, does not require re-zipping of the archive and is 
 instant fast.
+
 
 > Binaries are available for Linux 64bit, MS Windows 64bit and 32bit - see Releases
 
@@ -88,7 +91,7 @@ File system inputs: 215416
 ### Version 1.19-20220107 (DO NOT USE)
 
 - Fixed searching within extracted log4j folders on Windows
-- removed mmap access due to incompatibility with Windows.
+- Removed mmap access due to incompatibility with Windows.
 
 ### Version 1.18-20220107
 
