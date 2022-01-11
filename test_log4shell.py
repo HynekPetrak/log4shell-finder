@@ -59,6 +59,7 @@ CLASSES = [
     POM_PROPS,
     SETUTILS, ]
 
+progress = None
 
 def get_class_names(base):
     return tuple([a[0]+a[1] for a in itertools.product([base], CLASS_EXTS)])
@@ -158,7 +159,7 @@ def get_status_text(status):
         vulns.append("STRANGE")
 
     if log.isEnabledFor(logging.DEBUG):
-        vulns.append("*{}*".format(status.name))
+        vulns.append(f"*{status.name}*")
 
     return flag, sorted(vulns)
 
@@ -183,23 +184,11 @@ def log_item(path, status, message, pom_version="unknown", container=Container.U
         "message": message,
         "pom_version": pom_version
     })
-    message = "[{}] [{}]  {} {} {}".format(
-        flag, ', '.join(vulns), container.name.title(), path, message)
+    message = f"[{flag}] [{', '.join(vulns)}]  {container.name.title()} {path} {message}"
     log.info(message)
 
 
 log_item.found_items = []
-
-
-def get_file_type(file_name):
-    """return 0 == zip, 1 == class, -1 = who knows..."""
-    _, ext = os.path.splitext(file_name)
-    ext = ext.lower()
-    if ext in CLASS_EXTS:
-        return FileType.CLASS
-    if ext in ZIP_EXTS:
-        return FileType.ZIP
-    return FileType.OTHER
 
 
 def get_version_from_manifest(lines):
@@ -321,13 +310,13 @@ def scan_archive(f, path):
                 isLog4j2_10 = True
 
         if log.isEnabledFor(logging.DEBUG):
-            log.debug("###  log4jProbe = {}, isLog4j2_10 = {},".format(log4jProbe, isLog4j2_10) +
-                      " hasJndiLookup = {}, hasJndiManager = {}, ".format(hasJndiLookup, hasJndiManager) +
-                      "isLog4j1_x = {}, isLog4j2_15 = {}, ".format(isLog4j1_x, isLog4j2_15) +
-                      "isLog4j2_16 = {}, isLog4j2_15_override =".format(isLog4j2_16) +
-                      " {}, isLog4j2_12_2 = {},".format(isLog4j2_15_override, isLog4j2_12_2) +
-                      " isLog4j2_12_2_override = {}, ".format(isLog4j2_12_2_override) +
-                      "isLog4j2_17 = {} ".format(isLog4j2_17))
+            log.debug(f"###  log4jProbe = {log4jProbe}, isLog4j2_10 = {isLog4j2_10}," + 
+                      f" hasJndiLookup = {hasJndiLookup}, hasJndiManager = {hasJndiManager}, " +
+                      f"isLog4j1_x = {isLog4j1_x}, isLog4j2_15 = {isLog4j2_15}, " +
+                      f"isLog4j2_16 = {isLog4j2_16}, isLog4j2_15_override =" +
+                      f" {isLog4j2_15_override}, isLog4j2_12_2 = {isLog4j2_12_2}," +
+                      f" isLog4j2_12_2_override = {isLog4j2_12_2_override}, " +
+                      f"isLog4j2_17 = {isLog4j2_17} ")
 
         isLog4j2 = False
         isLog4j_2_10_0 = False
@@ -361,8 +350,7 @@ def scan_archive(f, path):
                 content = inf.read().decode('UTF-8')
                 kv = parse_kv_pairs(content)
             if log.isEnabledFor(logging.DEBUG):
-                log.debug("pom.properties found at {}:{}, {}".format(
-                    path, pom_path, kv))
+                log.debug(f"pom.properties found at {path}:{pom_path}, {kv}")
             if "version" in kv:
                 version = kv['version']
         elif manifest_path:
@@ -370,32 +358,29 @@ def scan_archive(f, path):
                 lines = inf.read().decode('UTF-8').splitlines()
                 if log.isEnabledFor(logging.DEBUG):
                     log.debug(
-                        "MANIFEST.MF found at {}:{}".format(path, pom_path))
+                        f"MANIFEST.MF found at {path}:{pom_path}")
                 version = get_version_from_manifest(lines)
 
     if log.isEnabledFor(logging.DEBUG):
         log.debug(
-            "### isLog4j2 = {}, isLog4j_2_10_0 = {},".format(isLog4j2, isLog4j_2_10_0) +
-            " isLog4j_2_12_2 = {}, isRecent = {},".format(isLog4j_2_12_2, isRecent) +
-            " isLog4j2_17 = {}, isLog4j2_12_3 = {}".format(isLog4j2_17, isLog4j2_12_3))
+            f"### isLog4j2 = {isLog4j2}, isLog4j_2_10_0 = {isLog4j_2_10_0}," +
+            f" isLog4j_2_12_2 = {isLog4j_2_12_2}, isRecent = {isRecent}," +
+            f" isLog4j2_17 = {isLog4j2_17}, isLog4j2_12_3 = {isLog4j2_12_3}")
     if not isLog4j2:
         if isLog4j1_x:
             if isLog4j1_unsafe:
                 log_item(path, Status.V1_2_17,  # CVE_2021_4104
-                         "contains Log4J-{} <= 1.2.17, JMSAppender.class found".format(
-                             version),
+                         f"contains Log4J-{version} <= 1.2.17, JMSAppender.class found",
                          version, Container.PACKAGE)
                 return
             else:
                 log_item(path, Status.V1_2_17_SAFE,  # OLDSAFE
-                         "contains Log4J-{} <= 1.2.17, JMSAppender.class not found".format(
-                             version),
+                         f"contains Log4J-{version} <= 1.2.17, JMSAppender.class not found",
                          version, Container.PACKAGE)
                 return
         elif version:
             log_item(path, Status.STRANGE,
-                     "contains pom.properties for Log4J-{}, but binary classes missing".format(
-                         version),
+                     f"contains pom.properties for Log4J-{version}, but binary classes missing",
                      version, Container.PACKAGE)
             return
         else:
@@ -477,8 +462,7 @@ def scan_archive(f, path):
                         (suffix_len - len(suffix_replacement))
                 new_fn = jndilookup_path.with_suffix(
                     ".vulnerable"[:suffix_len])
-                fix_msg = ", fixing, {} has been renamed to {}".format(
-                    jndilookup_path, new_fn.name)
+                fix_msg = f", fixing, {jndilookup_path} has been renamed to {new_fn.name}"
                 f.seek(0)
                 fcontent = f.read()
                 bstr_from = str(jndilookup_path).encode('utf-8')
@@ -520,9 +504,9 @@ def fix_jndilookup_class(fn):
     try:
         new_fn = fn.with_suffix('.vulnerable')
         os.rename(fn, new_fn)
-        return ", fixing, {} has been renamed to {}".format(fn, new_fn.name)
+        return f", fixing, {fn} has been renamed to {new_fn.name}"
     except Exception as ex:
-        log.error("Error renaming file %s: %s", fn, ex)
+        log.error(f"Error renaming file {fn} {ex}")
     return ""
 
 
@@ -560,14 +544,12 @@ def check_class(class_file):
         version = get_version_from_path(parent) or "1.x"
         if check_path_exists(parent, JMSAPPENDER):
             log_item(parent, Status.V1_2_17,  # CVE_2021_4104,
-                     "contains Log4J-{} <= 1.2.17, JMSAppender.class found".format(
-                         version),
+                     f"contains Log4J-{version} <= 1.2.17, JMSAppender.class found",
                      version, container=Container.FOLDER)
             return
         else:
             log_item(parent, Status.V1_2_17_SAFE,  # OLDSAFE,
-                     "contains Log4J-{} <= 1.2.17, JMSAppender.class not found".format(
-                         version),
+                     f"contains Log4J-{version} <= 1.2.17, JMSAppender.class not found",
                      version, container=Container.FOLDER)
             return
 
@@ -586,15 +568,14 @@ def check_class(class_file):
                LOGGERCONTEXT]:
         if not check_path_exists(log4j_dir, fn):
             log_item(parent, Status.STRANGE,
-                     "{} {} not found".format(msg, fn),
+                     f"{msg} {fn} not found",
                      version, container=Container.FOLDER)
             return
 
     jndilookup_path = check_path_exists(log4j_dir, JNDILOOKUP)
     if not jndilookup_path:
         log_item(parent, Status.NOJNDILOOKUP | Status.V2_0_BETA8,
-                 "{} <= 2.0-beta8 or {} has been removed".format(
-                     msg, JNDILOOKUP),
+                 f"{msg} <= 2.0-beta8 or {JNDILOOKUP} has been removed",
                  version, container=Container.FOLDER)
         return
 
@@ -699,38 +680,46 @@ def check_class(class_file):
     return
 
 
-def process_file(dirpath, filename):
+def get_file_type(file_name):
+    _, ext = os.path.splitext(file_name)
+    ext = ext.lower()
+    if ext in CLASS_EXTS:
+        return FileType.CLASS
+    if ext in ZIP_EXTS:
+        return FileType.ZIP
+    return FileType.OTHER
+
+
+def process_file(dirpath, filename, file_type):
     global args
     process_file.files_checked += 1
     fullname = filename
     try:
-        ft = get_file_type(filename)
-        if ft == FileType.OTHER:
-            return
         fullname = os.path.join(dirpath, filename)
-        if ft == FileType.CLASS:
+        if file_type == FileType.CLASS:
             check_class(fullname)
-        elif ft == FileType.ZIP:
+        elif file_type == FileType.ZIP:
             with open(fullname, "r+b" if args.fix else "rb") as f:
                 scan_archive(f, fullname)
         return fullname
     except Exception as ex:
         log.error("[E] Error processing %s: %s", fullname, ex)
-        raise
 
 
 process_file.files_checked = 0
 
 
-def report_progress(progress, fullname):
+def report_progress(fullname):
+    global progress
+
     if not progress:
         return
     cl = time.time()
     if (cl - progress) > report_progress.last_progress:
         log.info(
-            " After {} secs,".format(int(cl-report_progress.start_time)) +
-            " scanned {} files ".format(process_file.files_checked) +
-            "in {} folders.\n".format(analyze_directory.dirs_checked) +
+            f" After {int(cl-report_progress.start_time)} secs," +
+            f" scanned {process_file.files_checked} files " +
+            f"in {analyze_directory.dirs_checked} folders.\n" +
             "\tCurrently at: " + fullname)
         report_progress.last_progress = cl
 
@@ -739,7 +728,7 @@ report_progress.last_progress = time.time()
 report_progress.start_time = time.time()
 
 
-def analyze_directory(f, blacklist, progress):
+def analyze_directory(f, blacklist):
     global args
     # f = os.path.realpath(f)
     if os.path.isdir(f):
@@ -755,16 +744,24 @@ def analyze_directory(f, blacklist, progress):
                 dirnames.clear()
                 continue
             analyze_directory.dirs_checked += 1
-            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-                future_to_fn = []
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                futures = []
                 for filename in filenames:
-                    future_to_fn.append(executor.submit(
-                        process_file, dirpath, filename))
-                for future in concurrent.futures.as_completed(future_to_fn):
+                    ft = get_file_type(filename)
+                    if ft == FileType.OTHER:
+                        process_file.files_checked += 1
+                        continue
+                    futures.append(executor.submit(
+                        process_file, dirpath, filename, ft))
+                for future in concurrent.futures.as_completed(futures):
                     fullname = future.result()
-                    report_progress(progress, fullname)
+                    if fullname:
+                        report_progress(fullname)
     elif os.path.isfile(f):
-        process_file("", f)
+        ft = get_file_type(filename)
+        fullname = process_file("", f, ft)
+        if fullname:
+            report_progress(fullname)
     return
 
 
@@ -888,7 +885,7 @@ def output_csv(fn, host_info):
 
 
 def main():
-    global args
+    global args, progress
 
     parser = argparse.ArgumentParser(
         description='Searches file system for vulnerable log4j version.',
@@ -915,7 +912,7 @@ def main():
                         metavar="LOGFILE", nargs="?",
                         default=argparse.SUPPRESS,
                         help='Enable logging to log file,' +
-                        ' default is {}.'.format(DEFAULT_LOG_NAME))
+                        f' default is {DEFAULT_LOG_NAME}.')
     parser.add_argument('--progress', nargs='?',
                         type=int, metavar='SEC',
                         default=argparse.SUPPRESS,
@@ -979,7 +976,6 @@ def main():
 
     log.info("")
 
-    progress = None
     if "progress" in args:
         if args.progress and args.progress > 0:
             progress = args.progress
@@ -994,9 +990,9 @@ def main():
             continue
         if f == "-":
             for line in sys.stdin:
-                analyze_directory(line.rstrip("\r\n"), blacklist, progress)
+                analyze_directory(line.rstrip("\r\n"), blacklist)
         else:
-            analyze_directory(f, blacklist, progress)
+            analyze_directory(f, blacklist)
 
     log.info("")
 
@@ -1004,14 +1000,14 @@ def main():
         if args.json_out:
             fn = args.json_out
         else:
-            fn = "{}_{}.json".format(hostname, ip)
+            fn = f"{hostname}_{ip}.json"
         output_json(fn, host_info)
 
     if "csv_out" in args:
         if args.csv_out:
             fn = args.csv_out
         else:
-            fn = "{}_{}.csv".format(hostname, ip)
+            fn = f"{hostname}_{ip}.csv"
         output_csv(fn, host_info)
 
     print_stats_and_exit()
