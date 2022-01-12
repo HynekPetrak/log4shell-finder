@@ -206,7 +206,7 @@ Does not require any extra python libraries.
 
 ## Compile binaries
 
-The binaries were produces with:
+The binaries were produced with:
 
 ```
 pip install pyinstaller
@@ -214,13 +214,13 @@ pyinstaller -F ./test_log4shell.py
 ```
 If you want to build a 32bit version, install a 32bit Python interpreter, install pyinstaller with:
 ```
-C:\Users\TestUser\AppData\Local\Programs\Python\Python38-32\python.exe -m pip install pyinstaller
+C:\Users\User\AppData\Local\Programs\Python\Python38-32\python.exe -m pip install pyinstaller
 
 ```
 
 and then:
 ```
- C:\Users\TestUser\AppData\Local\Programs\Python\Python38-32\Scripts\pyinstaller.exe -n test_log4shell-mswin32 -F test_log4shell.py 
+ C:\Users\User\AppData\Local\Programs\Python\Python38-32\Scripts\pyinstaller.exe -n test_log4shell-mswin32 -F test_log4shell.py 
 ```
 
 ## Sample execution
