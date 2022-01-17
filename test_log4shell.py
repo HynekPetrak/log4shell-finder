@@ -53,6 +53,8 @@ NOSQL_APPENDER = "core/appender/nosql/NoSqlAppender"
 POM_PROPS = "META-INF/maven/org.apache.logging.log4j/log4j-core/pom.properties"
 MANIFEST = "META-INF/MANIFEST.MF"
 SETUTILS = "core/util/SetUtils"
+# https://github.com/qos-ch/logback/commit/21d772f2bc2ed780b01b4fe108df7e29707763f1
+JNDICONNSRC = "core/db/JNDIConnectionSource"
 
 CLASSES = [
     APPENDER,
@@ -902,7 +904,7 @@ def output_json(fn, host_info):
 
 def output_csv(fn, host_info):
     global args
-    found_items_columns = ["datetime", "ver", "ip", "hostname", "fqdn",
+    found_items_columns = ["datetime", "ver", "ip", "fqdn",
                            "OS", "Release", "arch",
                            "container", "status", "path", "message", "pom_version"]
     with open(fn, 'w', newline='', encoding='utf-8') as f:
@@ -912,7 +914,6 @@ def output_csv(fn, host_info):
             writer.writeheader()
         rows = [dict(item,
                      status=", ".join(item["status"]),
-                     hostname=host_info["hostname"],
                      ip=host_info["ip"],
                      datetime=time.strftime("%Y-%m-%d %H:%M:%S"),
                      ver=VERSION,
