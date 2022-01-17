@@ -43,7 +43,7 @@ instant fast.
 
 log4shell finder is optimized for performance and low memory footprint.
 
-**Updated on 9.1.2022**, performance measured on a directory with 26237 files in 2005 folders.
+**Updated on 17.1.2022**, performance measured on a directory with 26237 files in 2005 folders.
 
 > Runtime reduced by half, memory consumtion by 2/3, file system reads byt at least 90%
 
@@ -53,7 +53,7 @@ Command being timed: "./test_log4shell.py /home/hynek/war/ --exclude-dirs /mnt -
 User time (seconds): 15.05
 System time (seconds): 1.91
 Percent of CPU this job got: 127%
-Elapsed (wall clock) time (h:mm:ss or m:ss): 0:13.27
+Elapsed (wall clock) time (h:mm:ss or m:ss): 0:10.47
 Maximum resident set size (kbytes): 81616
 File system inputs: 968
 ```
