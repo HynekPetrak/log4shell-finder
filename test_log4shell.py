@@ -61,6 +61,7 @@ CLASSES = [
 
 progress = None
 
+
 def get_class_names(base):
     return tuple([a[0]+a[1] for a in itertools.product([base], CLASS_EXTS)])
 
@@ -310,7 +311,7 @@ def scan_archive(f, path):
                 isLog4j2_10 = True
 
         if log.isEnabledFor(logging.DEBUG):
-            log.debug(f"###  log4jProbe = {log4jProbe}, isLog4j2_10 = {isLog4j2_10}," + 
+            log.debug(f"###  log4jProbe = {log4jProbe}, isLog4j2_10 = {isLog4j2_10}," +
                       f" hasJndiLookup = {hasJndiLookup}, hasJndiManager = {hasJndiManager}, " +
                       f"isLog4j1_x = {isLog4j1_x}, isLog4j2_15 = {isLog4j2_15}, " +
                       f"isLog4j2_16 = {isLog4j2_16}, isLog4j2_15_override =" +
@@ -728,35 +729,53 @@ report_progress.last_progress = time.time()
 report_progress.start_time = time.time()
 
 
+def process_files(dirpath, filenames):
+    for filename in filenames:
+        ft = get_file_type(filename)
+        if ft == FileType.OTHER:
+            process_file.files_checked += 1
+            continue
+        fullname = process_file(dirpath, filename, ft)
+        if fullname:
+            report_progress(fullname)
+
+
+MAX_WORKERS = min(32, os.cpu_count() + 4)
+
+
 def analyze_directory(f, blacklist):
     global args
     # f = os.path.realpath(f)
     if os.path.isdir(f):
-        for (dirpath, dirnames, filenames) in os.walk(f, topdown=True):
-            if not os.path.isdir(dirpath):
-                continue
-            if args.same_fs and not os.path.samefile(f, dirpath) and os.path.ismount(dirpath):
-                log.info("Skipping mount point: " + dirpath)
-                dirnames.clear()
-                continue
-            if any(os.path.samefile(dirpath, p) for p in blacklist):
-                log.info("Skipping blaclisted folder: " + dirpath)
-                dirnames.clear()
-                continue
-            analyze_directory.dirs_checked += 1
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                futures = []
-                for filename in filenames:
-                    ft = get_file_type(filename)
-                    if ft == FileType.OTHER:
-                        process_file.files_checked += 1
-                        continue
-                    futures.append(executor.submit(
-                        process_file, dirpath, filename, ft))
-                for future in concurrent.futures.as_completed(futures):
-                    fullname = future.result()
-                    if fullname:
-                        report_progress(fullname)
+        log.info(f"[I] Scanning {f} in {MAX_WORKERS} parallel threads")
+        walk_iter = os.walk(f, topdown=True)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            futures = set()
+            while True:
+                (dirpath, dirnames, filenames) = next(
+                    walk_iter, (None, None, None))
+                if dirpath is None:
+                    done, not_done = concurrent.futures.wait(
+                        futures, return_when=concurrent.futures.ALL_COMPLETED)
+                    break
+                if not os.path.isdir(dirpath):
+                    continue
+                if args.same_fs and not os.path.samefile(f, dirpath) and os.path.ismount(dirpath):
+                    log.info("Skipping mount point: " + dirpath)
+                    dirnames.clear()
+                    continue
+                if any(os.path.samefile(dirpath, p) for p in blacklist):
+                    log.info("Skipping blaclisted folder: " + dirpath)
+                    dirnames.clear()
+                    continue
+                analyze_directory.dirs_checked += 1
+                futures.add(executor.submit(
+                    process_files, dirpath, filenames))
+                if len(futures) > MAX_WORKERS:
+                    done, futures = concurrent.futures.wait(
+                        futures, return_when=concurrent.futures.FIRST_COMPLETED)
+                    for ftr in done:
+                        _ = ftr.result()
     elif os.path.isfile(f):
         ft = get_file_type(filename)
         fullname = process_file("", f, ft)
