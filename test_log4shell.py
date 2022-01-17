@@ -901,13 +901,15 @@ def output_json(fn, host_info):
 
 
 def output_csv(fn, host_info):
+    global args
     found_items_columns = ["datetime", "ver", "ip", "hostname", "fqdn",
                            "OS", "Release", "arch",
                            "container", "status", "path", "message", "pom_version"]
     with open(fn, 'w', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, quoting=csv.QUOTE_ALL,
                                 skipinitialspace=True, fieldnames=found_items_columns)
-        writer.writeheader()
+        if not args.no_csv_header:
+            writer.writeheader()
         rows = [dict(item,
                      status=", ".join(item["status"]),
                      hostname=host_info["hostname"],
@@ -944,6 +946,8 @@ def main():
                         default=argparse.SUPPRESS,
                         help="Save results to csv file.",
                         metavar='FILE')
+    parser.add_argument('--no-csv-header', action="store_true",
+                        help="Don't write CSV header to the output file.")
     parser.add_argument('-f', '--fix', action="store_true",
                         help='Fix vulnerable by renaming '
                         'JndiLookup.class into JndiLookup.vulne.')
