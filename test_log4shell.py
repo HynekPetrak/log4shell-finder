@@ -771,11 +771,11 @@ def analyze_directory(f, blacklist):
                 if not os.path.isdir(dirpath):
                     continue
                 if args.same_fs and not os.path.samefile(f, dirpath) and os.path.ismount(dirpath):
-                    log.info("Skipping mount point: " + dirpath)
+                    log.info("[I] Skipping mount point: " + dirpath)
                     dirnames.clear()
                     continue
                 if any(os.path.samefile(dirpath, p) for p in blacklist):
-                    log.info("Skipping blaclisted folder: " + dirpath)
+                    log.info("[I] Skipping blaclisted folder: " + dirpath)
                     dirnames.clear()
                     continue
                 analyze_directory.dirs_checked += 1
@@ -1025,14 +1025,14 @@ def main():
     blacklist = [p for p in args.exclude_dirs if os.path.exists(p)]
 
     for f in args.folders:
-        if any(os.path.samefile(f, p) for p in blacklist):
+        if any(os.path.exists(f) and os.path.samefile(f, p) for p in blacklist):
             log.info("[I] Skipping blaclisted folder: " + f)
             continue
         if f == "-":
             for line in sys.stdin:
                 analyze_directory(line.rstrip("\r\n"), blacklist)
         elif f == "all" and drives:
-            log.info("[I] Going to scan all detected local drives:",
+            log.info("[I] Going to scan all detected local drives: " +
                      ", ".join(drives))
             for drive in drives:
                 analyze_directory(drive, blacklist)
