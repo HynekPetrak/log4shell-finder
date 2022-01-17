@@ -15,6 +15,16 @@ import concurrent.futures
 from enum import Flag, Enum, auto
 from shlex import shlex
 from collections import Counter
+try:
+    import win32file
+    import win32api
+
+    drives = win32api.GetLogicalDriveStrings()
+    drives = drives.split('\000')[:-1]
+    drives = [d for d in drives if win32file.GetDriveType(
+        d) == win32file.DRIVE_FIXED]
+except:
+    drives = None
 
 VERSION = "1.22pre-20220110"
 
@@ -145,7 +155,7 @@ def get_status_text(status):
     if status & Status.CVE_2021_45105:
         vulns.append("CVE-2021-45105 (5.9)")
     if status & Status.CVE_2021_4104:
-        vulns.append("CVE-2021-4104 (8.1)")
+        vulns.append("CVE-2021-4104 (7.5)")
     if status & Status.FIXED:
         vulns.append("FIXED")
     if status & Status.CANNOTFIX:
@@ -885,18 +895,28 @@ def output_json(fn, host_info):
     host_info['endtime'] = time.strftime("%Y-%m-%d %H:%M:%S")
     host_info['files_checked'] = process_file.files_checked
     host_info['folders_checked'] = analyze_directory.dirs_checked
-    with open(fn, "w") as f:
+    with open(fn, "w", encoding='utf-8') as f:
         json.dump(host_info, f, indent=2)
     log.info("Results saved into " + fn)
 
 
 def output_csv(fn, host_info):
-    found_items_columns = ["hostname", "ip", "fqdn",
+    found_items_columns = ["datetime", "ver", "ip", "hostname", "fqdn",
+                           "OS", "Release", "arch",
                            "container", "status", "path", "message", "pom_version"]
-    with open(fn, 'w') as f:
-        writer = csv.DictWriter(f, fieldnames=found_items_columns)
+    with open(fn, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, quoting=csv.QUOTE_ALL,
+                                skipinitialspace=True, fieldnames=found_items_columns)
         writer.writeheader()
-        rows = [dict(item, hostname=host_info["hostname"], ip=host_info["ip"],
+        rows = [dict(item,
+                     status=", ".join(item["status"]),
+                     hostname=host_info["hostname"],
+                     ip=host_info["ip"],
+                     datetime=time.strftime("%Y-%m-%d %H:%M:%S"),
+                     ver=VERSION,
+                     OS=host_info["system"],
+                     arch=host_info["machine"],
+                     Release=host_info["release"],
                      fqdn=host_info["fqdn"]) for item in log_item.found_items]
         for row in rows:
             writer.writerow(row)
@@ -947,8 +967,9 @@ def main():
     parser.add_argument('-v', '--version', action='version',
                         version='%(prog)s ' + VERSION)
     parser.add_argument('folders', nargs='+',
-                        help='List of folders or files to scan. '
-                        'Use "-" to read list of files from stdin.')
+                        help='List of folders or files to scan.\n'
+                        'Use "-" to read list of files from stdin.\n'
+                        'On MS Windows use "all" to scan all local drives.')
 
     args = parser.parse_args()
 
@@ -1010,6 +1031,11 @@ def main():
         if f == "-":
             for line in sys.stdin:
                 analyze_directory(line.rstrip("\r\n"), blacklist)
+        elif f == "all" and drives:
+            log.info("[I] Going to scan all detected local drives:",
+                     ", ".join(drives))
+            for drive in drives:
+                analyze_directory(drive, blacklist)
         else:
             analyze_directory(f, blacklist)
 
