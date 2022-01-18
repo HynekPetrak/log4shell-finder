@@ -144,7 +144,6 @@ class Status(Flag):
     CVE_2021_45105 = CVE_2021_45046 | V2_12_2 | V2_16_0
     CVE_2021_44832 = V2_0_BETA8 | CVE_2021_45105 | V2_3_1 | V2_12_3 | V2_17_0
     CVE_2021_4104 = V1_2_17
-    JNDILOOKUP_WORKAROUND = CVE_2021_44228 | CVE_2021_45046
     VULNERABLE = CVE_2021_44832 | CVE_2021_44228 | CVE_2021_45046 | CVE_2021_45105 | CVE_2021_4104 | CVE_2017_5645
     SAFE = V2_3_2 | V2_12_4 | V2_17_1
 
@@ -155,9 +154,7 @@ def get_status_text(status):
     vulns = []
     if status & Status.VULNERABLE:
         flag = "+"
-    if status & (Status.SAFE | Status.OLDSAFE):
-        flag = "-"
-    
+
     if log.isEnabledFor(logging.DEBUG):
         vulns.append(f"*{status.value}*")
     
@@ -175,6 +172,7 @@ def get_status_text(status):
         vulns.append("CVE-2017-5645 (9.8)")
     if not vulns and (status & Status.SAFE):
         vulns.append("SAFE")
+        flag = "-"
     if status & Status.FIXED:
         vulns.append("FIXED")
     if status & Status.CANNOTFIX:
@@ -183,6 +181,7 @@ def get_status_text(status):
         vulns.append("NOJNDILOOKUP")
     if status & Status.OLDSAFE:
         vulns.append("OLDSAFE")
+        flag = "-"
     if status & Status.STRANGE:
         vulns.append("STRANGE")
 
