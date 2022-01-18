@@ -16,6 +16,17 @@ Currently reports `log4j-core` v2.x:
 - all other versions as with actual CVE number, e.g **CVE-2021-44832 (5.9)**, **CVE-2021-45046 (9.0)** or **CVE-2021-44228 (10.0)**...
 - status **STRANGE** is reported for archives with log4j-core pom.properties file, but without actual bytecode
   classes, ususally source packages.
+  
+| Detects | CVE            | CVSSv3 | Severity | Java  | Vuln from  | Vulnerable to                  | Fixed in            | library |
+| :-----  | :------------- | :----- | :------- | :---- | :--------- | :----------------------------- | :------------------ | :-- |
+| YES     | CVE-2021-44228 | 10,0   | Critical | 8     | 2.0-beta9  | 2.14.1                         | 2.15.0              | log4jv2 |
+| YES     | CVE-2017-5645  | 9,8    | Critical | 7     | 2.0-alpha1 | 2.8.1                          | 2.8.2               | log4jv2 |
+| YES     | CVE-2021-45046 | 9,0    | Critical | 7/8   | 2.0-beta9  | 2.15.0 excluding 2.12.2        | 2.12.2/2.16.0       | log4jv2 |
+| YES     | CVE-2021-4104  | 7,5    | High     | -     | 1.0        | 1.x                            | nofix               | log4jv1 |
+| YES     | CVE-2021-44832 | 6,6    | Medium   | 6/7/8 | 2.0-alpha7 | 2.17.0, excluding 2.3.2/2.12.4 | 2.3.2/2.12.4/2.17.1 | log4jv2 |
+| -       | CVE-2021-42550 | 6,6    | Medium   | -     | 1.0        | 1.2.7                          | 1.2.8               | logback |
+| YES     | CVE-2021-45105 | 5,9    | Medium   | 6/7/8 | 2.0-beta9  | 2.16.0, excluding 2.12.3       | 2.3.1/2.12.3/2.17.0 | log4jv2 |
+| -       | CVE-2020-9488  | 3,7    | Low      | 7/8   | 2.0-alpha1 | 2.13.1                         | 2.12.3/2.13.2       | log4jv2 |
 
 log4j v1.x with JMSAppender.class removed appears as **OLDSAFE**.
 
