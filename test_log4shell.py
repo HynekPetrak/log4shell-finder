@@ -55,6 +55,8 @@ MANIFEST = "META-INF/MANIFEST.MF"
 SETUTILS = "core/util/SetUtils"
 # https://github.com/qos-ch/logback/commit/21d772f2bc2ed780b01b4fe108df7e29707763f1
 JNDICONNSRC = "core/db/JNDIConnectionSource"
+# in 2.8.x and < 2.9.0
+ABSSOCKETSRV = "core/net/server/AbstractSocketServer"
 
 CLASSES = [
     APPENDER,
@@ -69,7 +71,9 @@ CLASSES = [
     LOGGERCONTEXT,
     NOSQL_APPENDER,
     POM_PROPS,
-    SETUTILS, ]
+    SETUTILS,
+    ABSSOCKETSRV,
+    ]
 
 progress = None
 
@@ -100,6 +104,9 @@ IN_2_3_1 = b"Unsupported JNDI URI - {}"
 # This occurs in "DataSourceConnectionSource.class" in 2.17.1 and friends.
 IS_CVE_2021_44832_SAFE = b"JNDI must be enabled by setting log4j2.enableJndiJdbc=true"
 
+# This is part of fix for CVE-2017-5645 in "AbstractSocketServer.java" of 2.8.2
+IN_2_8_2 = b"Additional classes to allow deserialization"
+
 
 class FileType(Enum):
     CLASS = 0
@@ -121,6 +128,7 @@ class Status(Flag):
     V2_0_BETA9 = auto()
     V2_3_1 = auto()
     V2_3_2 = auto()
+    V2_8_1 = auto()
     V2_10_0 = auto()
     V2_12_2 = auto()
     V2_12_3 = auto()
@@ -130,12 +138,14 @@ class Status(Flag):
     V2_17_0 = auto()
     V2_17_1 = auto()
     NOJNDILOOKUP = auto()
+    CVE_2017_5645 = V2_8_1 | V2_0_BETA9 | V2_0_BETA8 | V2_3_1 | V2_3_2
     CVE_2021_44228 = V2_10_0 | V2_0_BETA9
     CVE_2021_45046 = CVE_2021_44228 | V2_15_0
     CVE_2021_45105 = CVE_2021_45046 | V2_12_2 | V2_16_0
     CVE_2021_44832 = V2_0_BETA8 | CVE_2021_45105 | V2_3_1 | V2_12_3 | V2_17_0
     CVE_2021_4104 = V1_2_17
-    VULNERABLE = CVE_2021_44832 | CVE_2021_44228 | CVE_2021_45046 | CVE_2021_45105 | CVE_2021_4104
+    JNDILOOKUP_WORKAROUND = CVE_2021_44228 | CVE_2021_45046
+    VULNERABLE = CVE_2021_44832 | CVE_2021_44228 | CVE_2021_45046 | CVE_2021_45105 | CVE_2021_4104 | CVE_2017_5645
     SAFE = V2_3_2 | V2_12_4 | V2_17_1
 
 
@@ -147,32 +157,34 @@ def get_status_text(status):
         flag = "+"
     if status & (Status.SAFE | Status.OLDSAFE):
         flag = "-"
-
+    
+    if log.isEnabledFor(logging.DEBUG):
+        vulns.append(f"*{status.value}*")
+    
     if status & Status.CVE_2021_44832:
         vulns.append("CVE-2021-44832 (6.6)")
-    if status & Status.CVE_2021_44228:
+    if status & Status.CVE_2021_44228 and not (status & Status.NOJNDILOOKUP):
         vulns.append("CVE-2021-44228 (10.0)")
-    if status & Status.CVE_2021_45046:
+    if status & Status.CVE_2021_45046 and not (status & Status.NOJNDILOOKUP):
         vulns.append("CVE-2021-45046 (9.0)")
     if status & Status.CVE_2021_45105:
         vulns.append("CVE-2021-45105 (5.9)")
     if status & Status.CVE_2021_4104:
         vulns.append("CVE-2021-4104 (7.5)")
+    if status & Status.CVE_2017_5645:
+        vulns.append("CVE-2017-5645 (9.8)")
+    if not vulns and (status & Status.SAFE):
+        vulns.append("SAFE")
     if status & Status.FIXED:
         vulns.append("FIXED")
     if status & Status.CANNOTFIX:
         vulns.append("CANNOTFIX")
     if status & Status.NOJNDILOOKUP:
         vulns.append("NOJNDILOOKUP")
-    if status & Status.SAFE:
-        vulns.append("SAFE")
     if status & Status.OLDSAFE:
         vulns.append("OLDSAFE")
     if status & Status.STRANGE:
         vulns.append("STRANGE")
-
-    if log.isEnabledFor(logging.DEBUG):
-        vulns.append(f"*{status.name}*")
 
     return flag, sorted(vulns)
 
@@ -189,6 +201,9 @@ def log_item(path, status, message, pom_version="unknown", container=Container.U
         return
 
     flag, vulns = get_status_text(status)
+    
+    if status & Status.NOJNDILOOKUP:
+        message += ", JndiLookup.class not found"
 
     log_item.found_items.append({
         "container": container.name.title(),
@@ -257,6 +272,7 @@ def scan_archive(f, path):
         isLog4j2_12_2_override = False
         isLog4j2_12_3 = False
         isLog4j2_3_1 = False
+        vulnCVE_2017_5645 = False
         pom_path = None
         manifest_path = None
         jndilookup_path = None
@@ -302,6 +318,11 @@ def scan_archive(f, path):
                         isLog4j2_15_override = True
                     if class_content.find(IN_2_3_1) >= 0:
                         isLog4j2_3_1 = True
+            elif fn.endswith(CLASS_VARIANTS[ABSSOCKETSRV]):
+                with zf.open(fn, "r") as inner_class:
+                    class_content = inner_class.read()
+                    if class_content.find(IN_2_8_2) < 0:
+                        vulnCVE_2017_5645 = True
 
             elif fn.endswith(CLASS_VARIANTS[SETUTILS]):
                 hasSetUtils = True
@@ -338,18 +359,15 @@ def scan_archive(f, path):
         if (log4jProbe[0] and log4jProbe[1] and log4jProbe[2] and
                 log4jProbe[3] and log4jProbe[4]):
             isLog4j2 = True
-            if hasJndiLookup:
-                if isLog4j2_10:
-                    isLog4j_2_10_0 = True
-                    if hasJndiManager:
-                        if (isLog4j2_17 or (isLog4j2_15 and not isLog4j2_15_override) or
-                                (isLog4j2_12_2 and not isLog4j2_12_2_override)):
-                            isRecent = True
-                            isLog4j_2_12_2 = (
-                                isLog4j2_12_2 and not isLog4j2_12_2_override)
-                            if isLog4j2_17 and hasSetUtils:
-                                isLog4j2_12_3 = True
-                                isLog4j2_17 = False
+            if hasJndiManager:
+                if (isLog4j2_17 or (isLog4j2_15 and not isLog4j2_15_override) or
+                        (isLog4j2_12_2 and not isLog4j2_12_2_override)):
+                    isRecent = True
+                    isLog4j_2_12_2 = (
+                        isLog4j2_12_2 and not isLog4j2_12_2_override)
+                    if isLog4j2_17 and hasSetUtils:
+                        isLog4j2_12_3 = True
+                        isLog4j2_17 = False
 
         if isLog4j2:
             version = "2.x"
@@ -405,14 +423,9 @@ def scan_archive(f, path):
     else:
         prefix = "contains Log4J-"
     prefix += version
+    buf = ""
 
-    if isLog4j2 and not hasJndiLookup:
-        buf = prefix + " <= 2.0-beta8 or JndiLookup.class has been removed"
-        status = Status.V2_0_BETA8 | Status.NOJNDILOOKUP
-        log_item(path, status, buf, version, Container.PACKAGE)
-        return
-
-    if isLog4j_2_10_0:
+    if isLog4j2_10:
         if isRecent:
             if isLog4j2_12_3:
                 if hasJdbcJndiDisabled:
@@ -447,11 +460,21 @@ def scan_archive(f, path):
         else:
             buf = " == 2.3.1"
             status = Status.V2_3_1  # CVE_2021_44832
+    elif vulnCVE_2017_5645:
+        buf = " <= 2.8.1"
+        status = Status.V2_8_1
+    elif not hasJndiLookup:
+        if not buf:
+            buf += " <= 2.0-beta8"
+            status = Status.V2_0_BETA8
     else:
         buf = " >= 2.0-beta9 (< 2.10.0)"
         status = Status.V2_0_BETA9  # CVE_2021_44228
 
     buf = prefix + buf
+    
+    if not hasJndiLookup:
+        status |= Status.NOJNDILOOKUP
 
     fix_msg = ""
     if (status & (Status.CVE_2021_45046 | Status.CVE_2021_44228)) and args.fix:
@@ -584,13 +607,19 @@ def check_class(class_file):
                      f"{msg} {fn} not found",
                      version, container=Container.FOLDER)
             return
+    
+    status = Status(0)
+    fn = check_path_exists(log4j_dir, ABSSOCKETSRV)
+    if fn:
+        with open(fn, "rb") as f:
+            if f.read().find(IN_2_8_2) < 0:
+                vulnCVE_2017_5645 = True
+                msg += " <= 2.8.1"
+                status |= Status.V2_8_1
 
     jndilookup_path = check_path_exists(log4j_dir, JNDILOOKUP)
     if not jndilookup_path:
-        log_item(parent, Status.NOJNDILOOKUP | Status.V2_0_BETA8,
-                 f"{msg} <= 2.0-beta8 or {JNDILOOKUP} has been removed",
-                 version, container=Container.FOLDER)
-        return
+        status |= Status.NOJNDILOOKUP
 
     fix_msg = ""
     hasJdbcJndiDisabled = False
@@ -600,23 +629,24 @@ def check_class(class_file):
             if f.read().find(IS_CVE_2021_44832_SAFE) >= 0:
                 hasJdbcJndiDisabled = True
 
+
     if not check_path_exists(log4j_dir, NOSQL_APPENDER):
         fn = check_path_exists(log4j_dir, JNDIMANAGER)
         if fn:
             with open(fn, "rb") as f:
                 if f.read().find(IN_2_3_1) >= 0:
                     if hasJdbcJndiDisabled:
-                        log_item(parent, Status.SAFE,
+                        log_item(parent, status | Status.SAFE,
                                  msg + " >= 2.3.2",
                                  version, container=Container.FOLDER)
                         return
                     else:
-                        log_item(parent, Status.V2_3_1,  # CVE_2021_44832,
+                        log_item(parent, status | Status.V2_3_1,  # CVE_2021_44832,
                                  msg + " == 2.3.1",
                                  version, container=Container.FOLDER)
                         return
 
-        status = Status.V2_0_BETA9  # CVE_2021_44228
+        status |= Status.V2_0_BETA9  # CVE_2021_44228
         if args.fix:
             fix_msg = fix_jndilookup_class(jndilookup_path)
             if fix_msg:
@@ -633,30 +663,30 @@ def check_class(class_file):
             with open(fn, "rb") as f:
                 fcontent = f.read()
                 if fcontent.find(NOT_IN_2_12_2) == -1:
-                    log_item(parent, Status.V2_12_2,  # CVE_2021_45105,
+                    log_item(parent, status | Status.V2_12_2,  # CVE_2021_45105,
                              msg + " == 2.12.2",
                              version, container=Container.FOLDER)
                     return
                 if fcontent.find(IN_2_17_0) >= 0:
                     if not check_path_exists(log4j_dir, SETUTILS):
                         if hasJdbcJndiDisabled:
-                            log_item(parent, Status.V2_17_1,  # SAFE,
+                            log_item(parent, status | Status.V2_17_1,  # SAFE,
                                      msg + " >= 2.17.1",
                                      version, container=Container.FOLDER)
                             return
                         else:
-                            log_item(parent, Status.V2_17_0,  # CVE_2021_44832,
+                            log_item(parent, status | Status.V2_17_0,  # CVE_2021_44832,
                                      msg + " == 2.17.0",
                                      version, container=Container.FOLDER)
                             return
                     else:
                         if hasJdbcJndiDisabled:
-                            log_item(parent, Status.V2_12_4,  # SAFE,
+                            log_item(parent, status | Status.V2_12_4,  # SAFE,
                                      msg + " >= 2.12.4",
                                      version, container=Container.FOLDER)
                             return
                         else:
-                            log_item(parent, Status.V2_12_3,  # CVE_2021_44832,
+                            log_item(parent, status | Status.V2_12_3,  # CVE_2021_44832,
                                      msg + " == 2.12.3",
                                      version, container=Container.FOLDER)
                             return
@@ -666,12 +696,12 @@ def check_class(class_file):
             with open(fn, "rb") as f:
                 fcontent = f.read()
                 if fcontent.find(IN_2_16_0) >= 0:
-                    log_item(parent, Status.V2_16_0,  # CVE_2021_45105,
+                    log_item(parent, status | Status.V2_16_0,  # CVE_2021_45105,
                              msg + " == 2.16.0",
                              version, container=Container.FOLDER)
                     return
                 elif fcontent.find(IN_2_15_0) >= 0:
-                    status = Status.V2_15_0  # CVE_2021_45046
+                    status |= Status.V2_15_0  # CVE_2021_45046
                     if args.fix:
                         fix_msg = fix_jndilookup_class(jndilookup_path)
                         if fix_msg:
@@ -681,7 +711,7 @@ def check_class(class_file):
                              version, container=Container.FOLDER)
                     return
 
-    status = Status.V2_10_0  # CVE_2021_44228
+    status |= Status.V2_10_0  # CVE_2021_44228
     if args.fix:
         fix_msg = fix_jndilookup_class(jndilookup_path)
         if fix_msg:
@@ -717,6 +747,7 @@ def process_file(dirpath, filename, file_type):
         return fullname
     except Exception as ex:
         log.error("[E] Error processing %s: %s", fullname, ex)
+        raise
 
 
 process_file.files_checked = 0
