@@ -746,7 +746,6 @@ def process_file(dirpath, filename, file_type):
         return fullname
     except Exception as ex:
         log.error("[E] Error processing %s: %s", fullname, ex)
-        raise
 
 
 process_file.files_checked = 0
