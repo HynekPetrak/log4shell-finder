@@ -57,6 +57,7 @@ SETUTILS = "core/util/SetUtils"
 JNDICONNSRC = "core/db/JNDIConnectionSource"
 # in 2.8.x and < 2.9.0
 ABSSOCKETSRV = "core/net/server/AbstractSocketServer"
+FILOBJINPSTREAM = "FilteredObjectInputStream"
 
 CLASSES = [
     APPENDER,
@@ -73,6 +74,7 @@ CLASSES = [
     POM_PROPS,
     SETUTILS,
     ABSSOCKETSRV,
+    FILOBJINPSTREAM,
     ]
 
 progress = None
@@ -120,9 +122,7 @@ class Status(Flag):
     NOTOKAY = auto()
     OLD = auto()
     OLDUNSAFE = auto()
-    OLDSAFE = auto()
     STRANGE = auto()
-    V1_2_17 = auto()
     V1_2_17_SAFE = auto()
     V2_0_BETA8 = auto()
     V2_0_BETA9 = auto()
@@ -138,12 +138,13 @@ class Status(Flag):
     V2_17_0 = auto()
     V2_17_1 = auto()
     NOJNDILOOKUP = auto()
+    CVE_2019_17571 = auto()
+    CVE_2021_4104 = auto()
     CVE_2017_5645 = V2_8_1 | V2_0_BETA9 | V2_0_BETA8 | V2_3_1 | V2_3_2
     CVE_2021_44228 = V2_10_0 | V2_0_BETA9
     CVE_2021_45046 = CVE_2021_44228 | V2_15_0
     CVE_2021_45105 = CVE_2021_45046 | V2_12_2 | V2_16_0
     CVE_2021_44832 = V2_0_BETA8 | CVE_2021_45105 | V2_3_1 | V2_12_3 | V2_17_0
-    CVE_2021_4104 = V1_2_17
     VULNERABLE = CVE_2021_44832 | CVE_2021_44228 | CVE_2021_45046 | CVE_2021_45105 | CVE_2021_4104 | CVE_2017_5645
     SAFE = V2_3_2 | V2_12_4 | V2_17_1
 
@@ -170,8 +171,13 @@ def get_status_text(status):
         vulns.append("CVE-2021-4104 (7.5)")
     if status & Status.CVE_2017_5645:
         vulns.append("CVE-2017-5645 (9.8)")
+    if status & Status.CVE_2019_17571:
+        vulns.append("CVE-2019-17571 (9.8)")
     if not vulns and (status & Status.SAFE):
         vulns.append("SAFE")
+        flag = "-"
+    if not vulns and (status & Status.V1_2_17_SAFE):
+        vulns.append("OLDSAFE")
         flag = "-"
     if status & Status.FIXED:
         vulns.append("FIXED")
@@ -179,9 +185,6 @@ def get_status_text(status):
         vulns.append("CANNOTFIX")
     if status & Status.NOJNDILOOKUP:
         vulns.append("NOJNDILOOKUP")
-    if status & Status.OLDSAFE:
-        vulns.append("OLDSAFE")
-        flag = "-"
     if status & Status.STRANGE:
         vulns.append("STRANGE")
 
@@ -271,7 +274,8 @@ def scan_archive(f, path):
         isLog4j2_12_2_override = False
         isLog4j2_12_3 = False
         isLog4j2_3_1 = False
-        vulnCVE_2017_5645 = False
+        hasCVE_2017_5645 = False
+        hasnotCVE_2019_17571 = False
         pom_path = None
         manifest_path = None
         jndilookup_path = None
@@ -321,7 +325,7 @@ def scan_archive(f, path):
                 with zf.open(fn, "r") as inner_class:
                     class_content = inner_class.read()
                     if class_content.find(IN_2_8_2) < 0:
-                        vulnCVE_2017_5645 = True
+                        hasCVE_2017_5645 = True
 
             elif fn.endswith(CLASS_VARIANTS[SETUTILS]):
                 hasSetUtils = True
@@ -329,6 +333,8 @@ def scan_archive(f, path):
                 isLog4j1_x = True
             elif fn.endswith(CLASS_VARIANTS[JMSAPPENDER]):
                 isLog4j1_unsafe = True
+            elif fn.endswith(CLASS_VARIANTS[FILOBJINPSTREAM]):
+                hasnotCVE_2019_17571 = True
             elif fn.endswith(CLASS_VARIANTS[LOGEVENT]):
                 log4jProbe[0] = True
             elif fn.endswith(CLASS_VARIANTS[APPENDER]):
@@ -396,15 +402,18 @@ def scan_archive(f, path):
             f"### isLog4j2 = {isLog4j2}, isLog4j_2_10_0 = {isLog4j_2_10_0}," +
             f" isLog4j_2_12_2 = {isLog4j_2_12_2}, isRecent = {isRecent}," +
             f" isLog4j2_17 = {isLog4j2_17}, isLog4j2_12_3 = {isLog4j2_12_3}")
+    status = Status(0)
     if not isLog4j2:
         if isLog4j1_x:
+            if not hasnotCVE_2019_17571:
+                status = Status.CVE_2019_17571
             if isLog4j1_unsafe:
-                log_item(path, Status.V1_2_17,  # CVE_2021_4104
-                         f"contains Log4J-{version} <= 1.2.17, JMSAppender.class found",
+                log_item(path, status | Status.CVE_2021_4104,  # CVE_2021_4104
+                         f"contains Log4J-{version} <= 1.2.17",
                          version, Container.PACKAGE)
                 return
             else:
-                log_item(path, Status.V1_2_17_SAFE,  # OLDSAFE
+                log_item(path, status | Status.V1_2_17_SAFE,  # OLDSAFE
                          f"contains Log4J-{version} <= 1.2.17, JMSAppender.class not found",
                          version, Container.PACKAGE)
                 return
@@ -459,7 +468,7 @@ def scan_archive(f, path):
         else:
             buf = " == 2.3.1"
             status = Status.V2_3_1  # CVE_2021_44832
-    elif vulnCVE_2017_5645:
+    elif hasCVE_2017_5645:
         buf = " <= 2.8.1"
         status = Status.V2_8_1
     elif not hasJndiLookup:
@@ -575,15 +584,18 @@ def check_class(class_file):
     global args
     parent = pathlib.PurePath(class_file).parent
 
+    status = Status(0)
     if class_file.endswith(CLASS_VARIANTS_NATIVE[DRFAPPENDER]):
         version = get_version_from_path(parent) or "1.x"
+        if not check_path_exists(parent, FILOBJINPSTREAM):
+            status = Status.CVE_2019_17571
         if check_path_exists(parent, JMSAPPENDER):
-            log_item(parent, Status.V1_2_17,  # CVE_2021_4104,
-                     f"contains Log4J-{version} <= 1.2.17, JMSAppender.class found",
+            log_item(parent, status | Status.CVE_2021_4104,  # CVE_2021_4104,
+                     f"contains Log4J-{version} <= 1.2.17",
                      version, container=Container.FOLDER)
             return
         else:
-            log_item(parent, Status.V1_2_17_SAFE,  # OLDSAFE,
+            log_item(parent, status | Status.V1_2_17_SAFE,  # OLDSAFE,
                      f"contains Log4J-{version} <= 1.2.17, JMSAppender.class not found",
                      version, container=Container.FOLDER)
             return
@@ -607,12 +619,11 @@ def check_class(class_file):
                      version, container=Container.FOLDER)
             return
     
-    status = Status(0)
     fn = check_path_exists(log4j_dir, ABSSOCKETSRV)
     if fn:
         with open(fn, "rb") as f:
             if f.read().find(IN_2_8_2) < 0:
-                vulnCVE_2017_5645 = True
+                hasCVE_2017_5645 = True
                 msg += " <= 2.8.1"
                 status |= Status.V2_8_1
 
@@ -818,7 +829,7 @@ def analyze_directory(f, blacklist):
                     for ftr in done:
                         _ = ftr.result()
     elif os.path.isfile(f):
-        ft = get_file_type(filename)
+        ft = get_file_type(f)
         fullname = process_file("", f, ft)
         if fullname:
             report_progress(fullname)
