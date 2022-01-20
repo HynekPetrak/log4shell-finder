@@ -804,16 +804,13 @@ def process_files(dirpath, filenames):
             report_progress(fullname)
 
 
-MAX_WORKERS = min(32, os.cpu_count() + 4)
-
-
 def analyze_directory(f, blacklist):
     global args
     # f = os.path.realpath(f)
     if os.path.isdir(f):
-        log.info(f"[I] Scanning {f} in {MAX_WORKERS} parallel threads")
+        log.info(f"[I] Scanning {f} in {args.threads} parallel threads")
         walk_iter = os.walk(f, topdown=True)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.threads) as executor:
             futures = set()
             while True:
                 (dirpath, dirnames, filenames) = next(
@@ -835,7 +832,7 @@ def analyze_directory(f, blacklist):
                 analyze_directory.dirs_checked += 1
                 futures.add(executor.submit(
                     process_files, dirpath, filenames))
-                if len(futures) > MAX_WORKERS:
+                if len(futures) > args.threads:
                     done, futures = concurrent.futures.wait(
                         futures, return_when=concurrent.futures.FIRST_COMPLETED)
                     for ftr in done:
@@ -1004,6 +1001,11 @@ def main():
     parser.add_argument('-f', '--fix', action="store_true",
                         help='Fix vulnerable by renaming '
                         'JndiLookup.class into JndiLookup.vulne.')
+    parser.add_argument('--threads',
+                        type=int, nargs="?",
+                        default=min(32, os.cpu_count() + 4),
+                        help='Specify number of threads to use for parallel processing,' +
+                        f' default is {min(32, os.cpu_count() + 4)}.')
     parser.add_argument('--file-log',
                         metavar="LOGFILE", nargs="?",
                         default=argparse.SUPPRESS,
