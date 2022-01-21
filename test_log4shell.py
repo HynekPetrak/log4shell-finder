@@ -242,9 +242,8 @@ def get_version_from_manifest(lines):
         # Implementation-Title: log4j
         # Implementation-Version: 1.1.3
         if ("Implementation-Title" in kv and
-                kv["Implementation-Title"].lower().find('log4j') >= 0 and
                 "Implementation-Version" in kv):
-            return kv['Implementation-Version']
+            return kv["Implementation-Title"], kv['Implementation-Version']
     except:
         raise
         pass
@@ -390,6 +389,7 @@ def scan_archive(f, path):
                         isLog4j2_12_3 = True
                         isLog4j2_17 = False
 
+        product = "Log4J"
         if isLog4j2:
             version = "2.x"
         elif isLog4j1_x:
@@ -405,13 +405,15 @@ def scan_archive(f, path):
                 log.debug(f"pom.properties found at {path}:{pom_path}, {kv}")
             if "version" in kv:
                 version = kv['version']
+            if "artifactId" in kv:
+                product = kv['artifactId']
         elif manifest_path:
             with zf.open(manifest_path, "r") as inf:
                 lines = inf.read().decode('UTF-8').splitlines()
                 if log.isEnabledFor(logging.DEBUG):
                     log.debug(
                         f"MANIFEST.MF found at {path}:{pom_path}")
-                version = get_version_from_manifest(lines)
+                product, version = get_version_from_manifest(lines) or (product, version)
 
     if log.isEnabledFor(logging.DEBUG):
         log.debug(
@@ -429,17 +431,17 @@ def scan_archive(f, path):
                 status |= Status.CVE_2022_23305
             if isLog4j1_unsafe:
                 log_item(path, status | Status.CVE_2021_4104,  # CVE_2021_4104
-                         f"contains Log4J-{version} <= 1.2.17",
+                         f"contains {product}-{version} <= 1.2.17",
                          version, Container.PACKAGE)
                 return
             else:
                 log_item(path, status | Status.V1_2_17_SAFE,  # OLDSAFE
-                         f"contains Log4J-{version} <= 1.2.17, JMSAppender.class not found",
+                         f"contains {product}-{version} <= 1.2.17, JMSAppender.class not found",
                          version, Container.PACKAGE)
                 return
         elif version:
             log_item(path, Status.STRANGE,
-                     f"contains pom.properties for Log4J-{version}, but binary classes missing",
+                     f"contains pom.properties for {product}-{version}, but binary classes missing",
                      version, Container.PACKAGE)
             return
         else:
@@ -447,9 +449,9 @@ def scan_archive(f, path):
 
     # isLog4j2 == True
     if isLog4j1_x:
-        prefix = "contains Log4J-1.x AND Log4J-"
+        prefix = "contains {product}-1.x AND {product}-"
     else:
-        prefix = "contains Log4J-"
+        prefix = "contains {product}-"
     prefix += version
     buf = ""
 
@@ -575,6 +577,7 @@ def fix_jndilookup_class(fn):
 
 
 def get_version_from_path(parent):
+    product = "Log4J"
     version = None
     pom_path = check_path_exists(
         parent.parent.parent.parent.parent.parent, POM_PROPS, mangle=False)
@@ -585,6 +588,8 @@ def get_version_from_path(parent):
         log.debug("pom.properties found at %s, %s", pom_path, kv)
         if "version" in kv:
             version = kv['version']
+        if "artifactId" in kv:
+            product = kv['artifactId']
     else:
         p = parent
         for i in range(5):
@@ -596,17 +601,19 @@ def get_version_from_path(parent):
             with open(manifest_path, "r") as inf:
                 lines = inf.readlines()
                 log.debug("MANIFEST.MF found at %s", manifest_path)
-                version = get_version_from_manifest(lines)
-    return version
+                product, version = get_version_from_manifest(lines) or (product, version)
+    return product, version
 
 
 def check_class(class_file):
     global args
     parent = pathlib.PurePath(class_file).parent
 
+    product = "Log4J"
+
     status = Status(0)
     if class_file.endswith(CLASS_VARIANTS_NATIVE[DRFAPPENDER]):
-        version = get_version_from_path(parent) or "1.x"
+        product, version = get_version_from_path(parent) or (product, "1.x")
         if not check_path_exists(parent, FILOBJINPSTREAM):
             status = Status.CVE_2019_17571
         if check_path_exists(parent, CHAINSAW):
@@ -615,12 +622,12 @@ def check_class(class_file):
             status |= Status.CVE_2022_23305
         if check_path_exists(parent, JMSAPPENDER):
             log_item(parent, status | Status.CVE_2021_4104,  # CVE_2021_4104,
-                     f"contains Log4J-{version} <= 1.2.17",
+                     f"contains {product}-{version} <= 1.2.17",
                      version, container=Container.FOLDER)
             return
         else:
             log_item(parent, status | Status.V1_2_17_SAFE,  # OLDSAFE,
-                     f"contains Log4J-{version} <= 1.2.17, JMSAppender.class not found",
+                     f"contains {product}-{version} <= 1.2.17, JMSAppender.class not found",
                      version, container=Container.FOLDER)
             return
 
@@ -629,9 +636,9 @@ def check_class(class_file):
 
     log.debug("Match on %s", class_file)
 
-    version = get_version_from_path(parent) or "2.x"
+    product, version = get_version_from_path(parent) or (product, "2.x")
 
-    msg = "contains Log4J-" + version
+    msg = f"contains {product}-" + version
 
     log4j_dir = parent.parent
 
