@@ -44,6 +44,7 @@ DRFAPPENDER = "log4j/DailyRollingFileAppender"
 FILTER = "core/Filter"
 JDBC_DSCS = "core/appender/db/jdbc/DataSourceConnectionSource"
 JMSAPPENDER = "net/JMSAppender"
+JDBCAPPENDER = "jdbc/JDBCAppender"
 JNDILOOKUP = "core/lookup/JndiLookup"
 JNDIMANAGER = "core/net/JndiManager"
 LAYOUT = "core/Layout"
@@ -66,6 +67,7 @@ CLASSES = [
     FILTER,
     JDBC_DSCS,
     JMSAPPENDER,
+    JDBCAPPENDER,
     JNDILOOKUP,
     JNDIMANAGER,
     LAYOUT,
@@ -143,6 +145,7 @@ class Status(Flag):
     CVE_2019_17571 = auto()
     CVE_2021_4104 = auto()
     CVE_2022_23307 = auto()
+    CVE_2022_23305 = auto()
     CVE_2017_5645 = V2_8_1 | V2_0_BETA9 | V2_0_BETA8 | V2_3_1 | V2_3_2
     CVE_2021_44228 = V2_10_0 | V2_0_BETA9
     CVE_2021_45046 = CVE_2021_44228 | V2_15_0
@@ -178,6 +181,8 @@ def get_status_text(status):
         vulns.append("CVE-2019-17571 (9.8)")
     if status & Status.CVE_2022_23307:
         vulns.append("CVE-2022-23307 (8.1)")
+    if status & Status.CVE_2022_23305:
+        vulns.append("CVE-2022-23305 (8.1)")
     if not vulns and (status & Status.SAFE):
         vulns.append("SAFE")
         flag = "-"
@@ -281,6 +286,7 @@ def scan_archive(f, path):
         isLog4j2_3_1 = False
         hasCVE_2017_5645 = False
         hasCVE_2022_23307 = False
+        hasCVE_2022_23305 = False
         hasnotCVE_2019_17571 = False
         pom_path = None
         manifest_path = None
@@ -343,6 +349,8 @@ def scan_archive(f, path):
                 hasnotCVE_2019_17571 = True
             elif fn.endswith(CLASS_VARIANTS[CHAINSAW]):
                 hasCVE_2022_23307 = True
+            elif fn.endswith(CLASS_VARIANTS[JDBCAPPENDER]):
+                hasCVE_2022_23305 = True
             elif fn.endswith(CLASS_VARIANTS[LOGEVENT]):
                 log4jProbe[0] = True
             elif fn.endswith(CLASS_VARIANTS[APPENDER]):
@@ -417,6 +425,8 @@ def scan_archive(f, path):
                 status = Status.CVE_2019_17571
             if hasCVE_2022_23307:
                 status |= Status.CVE_2022_23307
+            if hasCVE_2022_23305:
+                status |= Status.CVE_2022_23305
             if isLog4j1_unsafe:
                 log_item(path, status | Status.CVE_2021_4104,  # CVE_2021_4104
                          f"contains Log4J-{version} <= 1.2.17",
@@ -601,6 +611,8 @@ def check_class(class_file):
             status = Status.CVE_2019_17571
         if check_path_exists(parent, CHAINSAW):
             status |= Status.CVE_2022_23307
+        if check_path_exists(parent, JDBCAPPENDER):
+            status |= Status.CVE_2022_23305
         if check_path_exists(parent, JMSAPPENDER):
             log_item(parent, status | Status.CVE_2021_4104,  # CVE_2021_4104,
                      f"contains Log4J-{version} <= 1.2.17",
