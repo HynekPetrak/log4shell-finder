@@ -26,7 +26,7 @@ try:
 except:
     drives = None
 
-VERSION = "1.22pre-20220110"
+VERSION = "1.22pre-20220123"
 
 DEFAULT_LOG_NAME = 'log4shell-finder.log'
 
@@ -37,7 +37,7 @@ ZIP_EXTS = (".zip", ".jar", ".war", ".ear", ".aar", ".jpi",
             ".hpi", ".rar", ".nar", ".wab", ".eba", ".ejb", ".sar",
             ".apk", ".par", ".kar", )
 
-DELIMITER = " -> "
+DELIMITER = " > "
 
 APPENDER = "core/Appender"
 DRFAPPENDER = "log4j/DailyRollingFileAppender"
@@ -45,8 +45,14 @@ FILTER = "core/Filter"
 JDBC_DSCS = "core/appender/db/jdbc/DataSourceConnectionSource"
 JMSAPPENDER = "net/JMSAppender"
 JDBCAPPENDER = "jdbc/JDBCAppender"
+JDBCPATTPARSER = "jdbc/JdbcPatternParser"
 JNDILOOKUP = "core/lookup/JndiLookup"
 JNDIMANAGER = "core/net/JndiManager"
+JNDIUTIL = "net/JNDIUtil"
+SOCKETSERVER = "net/SocketServer"
+HARDENEDOIS = "net/HardenedObjectInputStream"
+HARDENEDLEIS = "net/HardenedLoggingEventInputStream"
+JMSSINK = "net/JMSSink"
 LAYOUT = "core/Layout"
 LOGEVENT = "core/LogEvent"
 LOGGERCONTEXT = "core/LoggerContext"
@@ -68,8 +74,14 @@ CLASSES = [
     JDBC_DSCS,
     JMSAPPENDER,
     JDBCAPPENDER,
+    JDBCPATTPARSER,
     JNDILOOKUP,
     JNDIMANAGER,
+    JNDIUTIL,
+    SOCKETSERVER,
+    HARDENEDOIS,
+    HARDENEDLEIS,
+    JMSSINK,
     LAYOUT,
     LOGEVENT,
     LOGGERCONTEXT,
@@ -113,6 +125,8 @@ IS_CVE_2021_44832_SAFE = b"JNDI must be enabled by setting log4j2.enableJndiJdbc
 # This is part of fix for CVE-2017-5645 in "AbstractSocketServer.java" of 2.8.2
 IN_2_8_2 = b"Additional classes to allow deserialization"
 
+#This disappears from JMSSink in fix of CVE-2022-23303
+IN_JMSSINK = b"Could not find name "
 
 class FileType(Enum):
     CLASS = 0
@@ -146,12 +160,16 @@ class Status(Flag):
     CVE_2021_4104 = auto()
     CVE_2022_23307 = auto()
     CVE_2022_23305 = auto()
+    CVE_2022_23302 = auto()
     CVE_2017_5645 = V2_8_1 | V2_0_BETA9 | V2_0_BETA8 | V2_3_1 | V2_3_2
     CVE_2021_44228 = V2_10_0 | V2_0_BETA9
     CVE_2021_45046 = CVE_2021_44228 | V2_15_0
     CVE_2021_45105 = CVE_2021_45046 | V2_12_2 | V2_16_0
     CVE_2021_44832 = V2_0_BETA8 | CVE_2021_45105 | V2_3_1 | V2_12_3 | V2_17_0
-    VULNERABLE = CVE_2021_44832 | CVE_2021_44228 | CVE_2021_45046 | CVE_2021_45105 | CVE_2021_4104 | CVE_2017_5645
+    VULNERABLE = (CVE_2021_44832 | CVE_2021_44228 | CVE_2021_45046 |
+            CVE_2021_45105 | CVE_2021_4104 | CVE_2017_5645 |
+            CVE_2019_17571 | CVE_2022_23307 | CVE_2022_23305 |
+            CVE_2022_23302)
     SAFE = V2_3_2 | V2_12_4 | V2_17_1
 
 
@@ -183,6 +201,8 @@ def get_status_text(status):
         vulns.append("CVE-2022-23307 (8.1)")
     if status & Status.CVE_2022_23305:
         vulns.append("CVE-2022-23305 (8.1)")
+    if status & Status.CVE_2022_23302:
+        vulns.append("CVE-2022-23302 (6.6)")
     if not vulns and (status & Status.SAFE):
         vulns.append("SAFE")
         flag = "-"
@@ -207,7 +227,7 @@ class Container(Enum):
     FOLDER = 2
 
 
-def log_item(path, status, message, pom_version="unknown", container=Container.UNDEFINED):
+def log_item(path, status, message, pom_version="unknown", product="log4j", container=Container.UNDEFINED):
     global args
     if not args.strange and status & Status.STRANGE:
         return
@@ -222,7 +242,8 @@ def log_item(path, status, message, pom_version="unknown", container=Container.U
         "path": str(path),
         "status": vulns,
         "message": message,
-        "pom_version": pom_version
+        "pom_version": pom_version,
+        "product": product,
     })
     message = f"[{flag}] [{', '.join(vulns)}]  {container.name.title()} {path} {message}"
     log.info(message)
@@ -274,7 +295,8 @@ def scan_archive(f, path):
         hasJdbcJndiDisabled = False
         hasSetUtils = False
         isLog4j1_x = False
-        isLog4j1_unsafe = False
+        hasJMSAppender = False
+        hasJNDIUtil = False
         isLog4j2_15 = False
         isLog4j2_16 = False
         isLog4j2_17 = False
@@ -284,9 +306,14 @@ def scan_archive(f, path):
         isLog4j2_12_3 = False
         isLog4j2_3_1 = False
         hasCVE_2017_5645 = False
-        hasCVE_2022_23307 = False
-        hasCVE_2022_23305 = False
-        hasnotCVE_2019_17571 = False
+        hasChainsaw = False
+        hasHardenedLoggingEventInputStream = False
+        hasJDBCAppender = False
+        hasJDBCPatternParser = False
+        hasSocketServer = False
+        hasHardenedObjectInputStream = False
+        hasFilteredObjectInputStream = False
+        hasVulnerableJMSSink = False
         pom_path = None
         manifest_path = None
         jndilookup_path = None
@@ -343,13 +370,28 @@ def scan_archive(f, path):
             elif fn.endswith(CLASS_VARIANTS[DRFAPPENDER]):
                 isLog4j1_x = True
             elif fn.endswith(CLASS_VARIANTS[JMSAPPENDER]):
-                isLog4j1_unsafe = True
+                hasJMSAppender = True
+            elif fn.endswith(CLASS_VARIANTS[JNDIUTIL]):
+                hasJNDIUtil = True
+            elif fn.endswith(CLASS_VARIANTS[SOCKETSERVER]):
+                hasSocketServer = True
             elif fn.endswith(CLASS_VARIANTS[FILOBJINPSTREAM]):
-                hasnotCVE_2019_17571 = True
+                hasFilteredObjectInputStream = True
+            elif fn.endswith(CLASS_VARIANTS[HARDENEDOIS]):
+                hasHardenedObjectInputStream = True
+            elif fn.endswith(CLASS_VARIANTS[HARDENEDLEIS]):
+                hasHardenedLoggingEventInputStream = True
             elif fn.endswith(CLASS_VARIANTS[CHAINSAW]):
-                hasCVE_2022_23307 = True
+                hasChainsaw = True
             elif fn.endswith(CLASS_VARIANTS[JDBCAPPENDER]):
-                hasCVE_2022_23305 = True
+                hasJDBCAppender = True
+            elif fn.endswith(CLASS_VARIANTS[JDBCPATTPARSER]):
+                hasJDBCPatternParser = True
+            elif fn.endswith(CLASS_VARIANTS[JMSSINK]):
+                with zf.open(fn, "r") as inner_class:
+                    class_content = inner_class.read()
+                    if class_content.find(IN_JMSSINK) >= 0:
+                        hasVulnerableJMSSink = True
             elif fn.endswith(CLASS_VARIANTS[LOGEVENT]):
                 log4jProbe[0] = True
             elif fn.endswith(CLASS_VARIANTS[APPENDER]):
@@ -372,6 +414,7 @@ def scan_archive(f, path):
                       f" isLog4j2_12_2_override = {isLog4j2_12_2_override}, " +
                       f"isLog4j2_17 = {isLog4j2_17} ")
 
+
         isLog4j2 = False
         isLog4j_2_10_0 = False
         isLog4j_2_12_2 = False
@@ -389,7 +432,7 @@ def scan_archive(f, path):
                         isLog4j2_12_3 = True
                         isLog4j2_17 = False
 
-        product = "Log4J"
+        product = "log4j"
         if isLog4j2:
             version = "2.x"
         elif isLog4j1_x:
@@ -423,35 +466,38 @@ def scan_archive(f, path):
     status = Status(0)
     if not isLog4j2:
         if isLog4j1_x:
-            if not hasnotCVE_2019_17571:
-                status = Status.CVE_2019_17571
-            if hasCVE_2022_23307:
+            if hasSocketServer and not (hasFilteredObjectInputStream or 
+                    hasHardenedObjectInputStream):
+                status |= Status.CVE_2019_17571
+            if hasVulnerableJMSSink:
+                status |= Status.CVE_2022_23302
+            if hasChainsaw and hasVulnerableJMSSink:
+                    # not hasHardenedLoggingEventInputStream and
+                    # not hasJDBCAppender):
                 status |= Status.CVE_2022_23307
-            if hasCVE_2022_23305:
+            if hasJDBCAppender and not hasJDBCPatternParser:
                 status |= Status.CVE_2022_23305
-            if isLog4j1_unsafe:
-                log_item(path, status | Status.CVE_2021_4104,  # CVE_2021_4104
-                         f"contains {product}-{version} <= 1.2.17",
-                         version, Container.PACKAGE)
-                return
-            else:
-                log_item(path, status | Status.V1_2_17_SAFE,  # OLDSAFE
-                         f"contains {product}-{version} <= 1.2.17, JMSAppender.class not found",
-                         version, Container.PACKAGE)
-                return
+            if hasJMSAppender and not hasJNDIUtil:
+                status |= Status.CVE_2021_4104
+            if not status:
+                status = Status.V1_2_17_SAFE
+            log_item(path, status,
+                     f"contains {product}-{version}",
+                     version, product, Container.PACKAGE)
+            return
         elif version:
             log_item(path, Status.STRANGE,
                      f"contains pom.properties for {product}-{version}, but binary classes missing",
-                     version, Container.PACKAGE)
+                     version, product, Container.PACKAGE)
             return
         else:
             return
 
     # isLog4j2 == True
     if isLog4j1_x:
-        prefix = "contains {product}-1.x AND {product}-"
+        prefix = f"contains {product}-1.x AND {product}-"
     else:
-        prefix = "contains {product}-"
+        prefix = f"contains {product}-"
     prefix += version
     buf = ""
 
@@ -547,7 +593,7 @@ def scan_archive(f, path):
 
                 status |= Status.FIXED
 
-    log_item(path, status, buf + fix_msg, version, Container.PACKAGE)
+    log_item(path, status, buf + fix_msg, version, product, Container.PACKAGE)
 
 
 def check_path_exists(folder, file_name,  mangle=True):
@@ -577,7 +623,7 @@ def fix_jndilookup_class(fn):
 
 
 def get_version_from_path(parent):
-    product = "Log4J"
+    product = "log4j"
     version = None
     pom_path = check_path_exists(
         parent.parent.parent.parent.parent.parent, POM_PROPS, mangle=False)
@@ -609,27 +655,38 @@ def check_class(class_file):
     global args
     parent = pathlib.PurePath(class_file).parent
 
-    product = "Log4J"
+    product = "log4j"
 
     status = Status(0)
     if class_file.endswith(CLASS_VARIANTS_NATIVE[DRFAPPENDER]):
         product, version = get_version_from_path(parent) or (product, "1.x")
-        if not check_path_exists(parent, FILOBJINPSTREAM):
-            status = Status.CVE_2019_17571
-        if check_path_exists(parent, CHAINSAW):
+
+        hasVulnerableJMSSink = False
+        fn = check_path_exists(parent, JMSSINK)
+        if fn:
+            with open(fn, "rb") as f:
+                if f.read().find(IN_JMSSINK) >= 0:
+                    hasVulnerableJMSSink = True
+                    status |= Status.CVE_2022_23302
+        if (check_path_exists(parent, SOCKETSERVER) and not 
+                (check_path_exists(parent, FILOBJINPSTREAM)
+                or check_path_exists(parent, HARDENEDOIS))):
+            status |= Status.CVE_2019_17571
+        if (check_path_exists(parent, CHAINSAW) and
+                hasVulnerableJMSSink):
             status |= Status.CVE_2022_23307
-        if check_path_exists(parent, JDBCAPPENDER):
+        if (check_path_exists(parent, JDBCAPPENDER) and
+                not check_path_exists(parent, JDBCPATTPARSER)):
             status |= Status.CVE_2022_23305
-        if check_path_exists(parent, JMSAPPENDER):
-            log_item(parent, status | Status.CVE_2021_4104,  # CVE_2021_4104,
-                     f"contains {product}-{version} <= 1.2.17",
-                     version, container=Container.FOLDER)
-            return
-        else:
-            log_item(parent, status | Status.V1_2_17_SAFE,  # OLDSAFE,
-                     f"contains {product}-{version} <= 1.2.17, JMSAppender.class not found",
-                     version, container=Container.FOLDER)
-            return
+        if (check_path_exists(parent, JMSAPPENDER) and
+                not check_path_exists(parent, JNDIUTIL)):
+            status |= Status.CVE_2021_4104
+        if not status:
+            status = Status.V1_2_17_SAFE
+        log_item(parent, status,
+                 f"contains {product}-{version}",
+                 version, product, container=Container.FOLDER)
+        return
 
     if not class_file.endswith(CLASS_VARIANTS_NATIVE[LOGEVENT]):
         return
@@ -647,7 +704,7 @@ def check_class(class_file):
         if not check_path_exists(log4j_dir, fn):
             log_item(parent, Status.STRANGE,
                      f"{msg} {fn} not found",
-                     version, container=Container.FOLDER)
+                     version, product, container=Container.FOLDER)
             return
     
     fn = check_path_exists(log4j_dir, ABSSOCKETSRV)
@@ -679,12 +736,12 @@ def check_class(class_file):
                     if hasJdbcJndiDisabled:
                         log_item(parent, status | Status.SAFE,
                                  msg + " >= 2.3.2",
-                                 version, container=Container.FOLDER)
+                                 version, product, container=Container.FOLDER)
                         return
                     else:
                         log_item(parent, status | Status.V2_3_1,  # CVE_2021_44832,
                                  msg + " == 2.3.1",
-                                 version, container=Container.FOLDER)
+                                 version, product, container=Container.FOLDER)
                         return
 
         status |= Status.V2_0_BETA9  # CVE_2021_44228
@@ -695,7 +752,7 @@ def check_class(class_file):
 
         log_item(parent, status,
                  msg + " >= 2.0-beta9 (< 2.10.0)" + fix_msg,
-                 version, container=Container.FOLDER)
+                 version, product, container=Container.FOLDER)
         return
     else:
         # Check for 2.12.2...
@@ -706,30 +763,30 @@ def check_class(class_file):
                 if fcontent.find(NOT_IN_2_12_2) == -1:
                     log_item(parent, status | Status.V2_12_2,  # CVE_2021_45105,
                              msg + " == 2.12.2",
-                             version, container=Container.FOLDER)
+                             version, product, container=Container.FOLDER)
                     return
                 if fcontent.find(IN_2_17_0) >= 0:
                     if not check_path_exists(log4j_dir, SETUTILS):
                         if hasJdbcJndiDisabled:
                             log_item(parent, status | Status.V2_17_1,  # SAFE,
                                      msg + " >= 2.17.1",
-                                     version, container=Container.FOLDER)
+                                     version, product, container=Container.FOLDER)
                             return
                         else:
                             log_item(parent, status | Status.V2_17_0,  # CVE_2021_44832,
                                      msg + " == 2.17.0",
-                                     version, container=Container.FOLDER)
+                                     version, product, container=Container.FOLDER)
                             return
                     else:
                         if hasJdbcJndiDisabled:
                             log_item(parent, status | Status.V2_12_4,  # SAFE,
                                      msg + " >= 2.12.4",
-                                     version, container=Container.FOLDER)
+                                     version, product, container=Container.FOLDER)
                             return
                         else:
                             log_item(parent, status | Status.V2_12_3,  # CVE_2021_44832,
                                      msg + " == 2.12.3",
-                                     version, container=Container.FOLDER)
+                                     version, product, container=Container.FOLDER)
                             return
 
         fn = check_path_exists(log4j_dir, JNDIMANAGER)
@@ -739,7 +796,7 @@ def check_class(class_file):
                 if fcontent.find(IN_2_16_0) >= 0:
                     log_item(parent, status | Status.V2_16_0,  # CVE_2021_45105,
                              msg + " == 2.16.0",
-                             version, container=Container.FOLDER)
+                             version, product, container=Container.FOLDER)
                     return
                 elif fcontent.find(IN_2_15_0) >= 0:
                     status |= Status.V2_15_0  # CVE_2021_45046
@@ -749,7 +806,7 @@ def check_class(class_file):
                             status |= Status.FIXED
                     log_item(parent, status,
                              msg + " == 2.15.0" + fix_msg,
-                             version, container=Container.FOLDER)
+                             version, product, container=Container.FOLDER)
                     return
 
     status |= Status.V2_10_0  # CVE_2021_44228
@@ -759,7 +816,7 @@ def check_class(class_file):
             status |= Status.FIXED
     log_item(parent, status,
              msg + " >= 2.10.0" + fix_msg,
-             version, container=Container.FOLDER)
+             version, product, container=Container.FOLDER)
 
     return
 
@@ -930,30 +987,37 @@ def print_stats_and_exit():
     # for hi in log_item.found_items:
     #    if "pom_version" in hi:
     #        cnt["Version " + hi["pom_version"]] += 1
+    for hi in log_item.found_items:
+       if "product" in hi:
+           cnt["library " + hi["product"]] += 1
     log.info("")
     log.info(
-        " Scanned %d files in %d folders in %.1f seconds.",
+            " Scanned %d files in %d folders in %.1f seconds, found:",
         process_file.files_checked,
         analyze_directory.dirs_checked,
         time.time()-report_progress.start_time)
     if not cnt:
-        log.info("   No instances of Log4J library found")
+        log.info("   No instances of Log4J library.")
         return
 
     for k in sorted(cnt.keys()):
         v = cnt[k]
         s = "s" if v > 1 else ""
         if "CVE" in k:
-            log.info("   Found %d instance%s vulnerable to %s",
-                     v, s, k)
+            log.info("   %d instance%s vulnerable to %s",
+                 v, s, k)
             hits = True
         elif "NOJNDILOOKUP" == k:
             log.info(
-                "   Found %d instance%s with JndiLookup.class removed.",
+                "   %d instance%s with JndiLookup.class removed.",
                 v, s)
+        elif "library" in k:
+            log.info(
+                "   %d instance%s of %s.",
+                v, s, k)
         else:
-            log.info("   Found %d instance%s with status: %s",
-                     v, s, k)
+            log.info("   %d instance%s with status: %s",
+                 v, s, k)
 
     log.info("")
     if hits:
