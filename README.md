@@ -8,36 +8,42 @@ Python port of https://github.com/mergebase/log4j-detector log4j-detector is cop
 > 
 > And it seems this is **the fastest scanning tool with lowest memory requirement** 
 
-Detects Log4J versions on your file-system within any application that are vulnerable to [CVE-2021-44228](https://mergebase.com/vulnerability/CVE-2021-44228/)  and [CVE-2021-45046](https://mergebase.com/vulnerability/CVE-2021-45046/). It is able to even find instances that are hidden several layers deep. Works on Linux, Windows, and Mac, and everywhere else Python runs, too!
-
-Currently reports `log4j-core` v2.x:
-- versions 2.3.2, 2.12.4 and 2.17.1 as **SAFE**,
-- version with JndiLookup.class removed and version pre-2.0-beta9 as "**MAYBESAFE**" and
-- all other versions as with actual CVE number, e.g **CVE-2021-44832 (5.9)**, **CVE-2021-45046 (9.0)** or **CVE-2021-44228 (10.0)**...
-- status **STRANGE** is reported for archives with log4j-core pom.properties file, but without actual bytecode
-  classes, ususally source packages.
-  
-| Detects | CVE            | CVSSv3 | Severity | Java  | Vuln from  | Vulnerable to                  | Fixed in            | library |
-| :-----  | :------------- | :----- | :------- | :---- | :--------- | :----------------------------- | :------------------ | :-- |
-| YES     | CVE-2021-44228 | 10,0   | Critical | 8     | 2.0-beta9  | 2.14.1                         | 2.15.0              | log4jv2 |
-| YES     | CVE-2017-5645  | 9,8    | Critical | 7     | 2.0-alpha1 | 2.8.1                          | 2.8.2               | log4jv2 |
-| YES     | CVE-2021-45046 | 9,0    | Critical | 7/8   | 2.0-beta9  | 2.15.0 excluding 2.12.2        | 2.12.2/2.16.0       | log4jv2 |
-| YES     | CVE-2021-4104  | 7,5    | High     | -     | 1.0        | 1.x                            | nofix               | log4jv1 |
-| YES     | CVE-2021-44832 | 6,6    | Medium   | 6/7/8 | 2.0-alpha7 | 2.17.0, excluding 2.3.2/2.12.4 | 2.3.2/2.12.4/2.17.1 | log4jv2 |
-| -       | CVE-2021-42550 | 6,6    | Medium   | -     | 1.0        | 1.2.7                          | 1.2.8               | logback |
-| YES     | CVE-2021-45105 | 5,9    | Medium   | 6/7/8 | 2.0-beta9  | 2.16.0, excluding 2.12.3       | 2.3.1/2.12.3/2.17.0 | log4jv2 |
-| -       | CVE-2020-9488  | 3,7    | Low      | 7/8   | 2.0-alpha1 | 2.13.1                         | 2.12.3/2.13.2       | log4jv2 |
-
-log4j v1.x with JMSAppender.class removed appears as **OLDSAFE**.
+Identifies log4j (1.x), reload4j (1.2.18+) and log4j-core (2.x) versions on your file-system vulnerable to
+[CVE-2021-44228](https://mergebase.com/vulnerability/CVE-2021-44228/), 
+[CVE-2021-45046](https://mergebase.com/vulnerability/CVE-2021-45046/) and many others - see table below. 
+It is able to find instances embedded in larger applications 
+several layers deep. Works on Linux, Windows, Mac or anywhere else Python 3.6+ runs.
 
 Can correctly detect log4j inside executable spring-boot jars/wars, dependencies blended
 into [uber jars](https://mergebase.com/blog/software-composition-analysis-sca-vs-java-uber-jars/), shaded jars, and even
-exploded jar files just sitting uncompressed on the file-system (aka *.class).
-
+exploded jar files just sitting uncompressed on the file-system (aka *.class).  
 It can also handle shaded class files - extensions .esclazz (elastic) and .classdata (Azure).
 
 Java archive extensions searched: `.zip`, `.jar`, `.war`, `.ear`, `.aar`, `.jpi`,
 `.hpi`, `.rar`, `.nar`, `.wab`, `.eba`, `.ejb`, `.sar`, `.apk`, `.par`, `.kar`
+
+
+## Detected vulnerabilities  
+
+| Detects | CVE            | CVSSv3 | Severity | Java  | Vuln from  | Vulnerable to                  | Fixed in            | library |
+| :-----  | :------------- | :----- | :------- | :---- | :--------- | :----------------------------- | :------------------ | :--     |
+| YES     | CVE-2021-44228 | 10,0   | Critical | 8     | 2.0-beta9  | 2.14.1                         | 2.15.0              | log4jv2 |
+| YES     | CVE-2017-5645  | 9,8    | Critical | 7     | 2.0-alpha1 | 2.8.1                          | 2.8.2               | log4jv2 |
+| YES     | CVE-2019-17571 | 9,8    | Critical |       | 1.2.0      | 1.2.17                         | nofix               | log4jv1 |
+| YES     | CVE-2021-45046 | 9,0    | Critical | 7/8   | 2.0-beta9  | 2.15.0 excluding 2.12.2        | 2.12.2/2.16.0       | log4jv2 |
+| YES     | CVE-2022-23305 | 8,1    | High     |       | 1.2.0      | 1.2.17                         | nofix / 1.2.18.1    | log4jv1, reload4j |
+| YES     | CVE-2022-23307 | 8,1    | High     |       | 1.2.0      | 1.2.17                         | nofix / 1.2.18.1    | log4jv1, reload4j |
+| YES     | CVE-2021-4104  | 7,5    | High     | -     | 1.0        | 1.2.17                         | nofix               | log4jv1 |
+| YES     | CVE-2021-44832 | 6,6    | Medium   | 6/7/8 | 2.0-alpha7 | 2.17.0, excluding 2.3.2/2.12.4 | 2.3.2/2.12.4/2.17.1 | log4jv2 |
+| -       | CVE-2021-42550 | 6,6    | Medium   | -     | 1.0        | 1.2.7                          | 1.2.8               | logback |
+| YES     | CVE-2022-23302 | 6,6    | Medium   |       | 1.0        | 1.2.17                         | nofix / 1.2.18.1    | log4jv1, reload4j |
+| YES     | CVE-2021-45105 | 5,9    | Medium   | 6/7/8 | 2.0-beta9  | 2.16.0, excluding 2.12.3       | 2.3.1/2.12.3/2.17.0 | log4jv2 |
+| -       | CVE-2020-9488  | 3,7    | Low      | 7/8   | 2.0-alpha1 | 2.13.1                         | 2.12.3/2.13.2       | log4jv2 |
+
+Each instance is reported with apropriate list of CVEs. For each CVE log4j library file is being analyzed whether the recommended 
+workarounds (e.g. JndiLookup.class or JMSAppender.class removed) has been applied and in that case is considered as non-vulnerable.
+Status **STRANGE** is reported for archives with log4j-core pom.properties file, but without actual bytecode
+classes, ususally those are source packages and can be ignored.
 
 > **Warning** `--fix` feature is experimental, use it on your own risk, make sure you backup your jar files prior using it.
 
@@ -54,14 +60,14 @@ instant fast.
 
 log4shell finder is optimized for performance and low memory footprint.
 
-**Updated on 17.1.2022**, performance measured on a directory with 26237 files in 2005 folders.
+**Updated on 23.1.2022**, performance measured on a directory with 26237 files in 2005 folders.
 
 > Runtime reduced by half, memory consumtion by 2/3, file system reads byt at least 90%
 
 ### log4shell-finder (this tool)
 ```yaml
 Command being timed: "./test_log4shell.py /home/hynek/war/ --exclude-dirs /mnt --same-fs"
-User time (seconds): 15.05
+User time (seconds): 11.05
 System time (seconds): 1.91
 Percent of CPU this job got: 127%
 Elapsed (wall clock) time (h:mm:ss or m:ss): 0:10.47
@@ -97,85 +103,7 @@ File system inputs: 215416
 
 - Fixed bug: `--fix` command in version 1.19 and 1.20 could corrupt `.jar` archives. 
 
-### Version 1.20-20220109 (DO NOT USE)
-
-- Performance improvement via multithreaded scanning
-
-### Version 1.19-20220107 (DO NOT USE)
-
-- Fixed searching within extracted log4j folders on Windows
-- Removed mmap access due to incompatibility with Windows.
-
-### Version 1.18-20220107
-
-- Code readability and performance improvments
-- Added parameter `--file-log [LOGFILE]` to enable logging to log file, default is log4shell-finder.log.
-- Added parameter  `--progress [SEC]` to enable progress reporting every SEC seconds, default is 10 seconds.
-
-### Version 1.17-20220105
-
-- Reworked status reporting, now listing all CVEs relevant for specific version of log4j.
-- Added `--no-error` to suppress file system error messages (e.g. Access Denied, corrupted zip archive).
-- Suppressed `STRANGE` status reporting by default - `STRANGE` are mainly source packages, that do not contain class binaries.
-- Added `--strange` to report also `STRANGE` instances.
-
-### Version 1.16-20211230
-
-- Fixed detection of 2.12.3 extracted
-
-### Version 1.15-20211230
-
-- Added support for versions 2.3.2, 2.12.4 and 2.17.1
-- Reporting actual CVEs instead of VULNERABLE or NOTOKAY status
-
-### Version 1.13-20211228
-
-- Added additional possible "JAR" file extensions.
-- Fixed bug: `--fix` command could corrupt `.jar` archives. 
-
-### Version 1.12-20211225 (DO NOT USE)
-
-- minor fix: status for 2.12.2 as `NOTOKAY`
-
-### Version 1.11-20211225 (DO NOT USE)
-
-- added `--fix` parameter with attempt to fix the vulnerability by renaming `JndiLookup.class` to `JndiLookup.vulne`. 
-  At the moment it can handle `.class` files on disk and within 1st level archives. 
-  Class cannot be renamed in archives embeded in other archives (nested). 
-  
-### Version 1.10-20211222
-
-- added detection of 2.12.3 and 2.3.1
-- added option to disable default logging to file `--no-file-log`
-
-### Version 1.8-20211222
-
-- added host information to the json file
-- possibility to save output to csv with `--csv-out`
-- if you omit file names for `--json-out` or `--csv-out` then the file name has a form: hostname_ipaddress.<csv|json>
-
-### Version 1.6-20211221
-
-- added checks for JMSAppender.class within log4j v1.x instances
-
-### Version 1.5-20211220
-
-- fixed bug where `--exclude-dirs` skipped the given directory, but not it's subdirectories
-
-### Version 1.4-20211220
-
-- added option `--same-fs` to skip mounted volumes while scanning.
-- findings can be saved in json format with `--json-out <filename>`
-- skip folder with `--exclude-dirs DIR [DIR ...]` parameter
-- use `-` as folder name to source folder names from stdin, e.g. `echo "/home" | test_log4shell.py -`
-
-### Version 1.3-20211219
-
-- handle [elastic's](https://github.com/elastic/apm-agent-java/blob/2775b70a6d4b5cf2eecd2693545f2acc46e1b8a3/apm-agent-bootstrap/pom.xml#L128) SHADED_CLASS_EXTENSION ".esclazz"
-
-### Version 1.2-20211219
-
-- get exact log4j version from pom.properties
+For previous changes see [Release Notes](RELEASE_NOTES.md)
 
 ## Usage
 
@@ -193,18 +121,20 @@ usage:  Type "test_log4shell.py --help" for more information
 Searches file system for vulnerable log4j version.
 
 positional arguments:
-  folders               List of folders or files to scan. Use "-" to read list of files from stdin.
+  folders               List of folders or files to scan. Use "-" to read list of files from stdin. On MS Windows use "all" to scan all local drives.
 
 optional arguments:
   -h, --help            show this help message and exit
   --exclude-dirs DIR [DIR ...]
-                        Don't search directories containing these strings (multiple supported)
+                        Exclude given directories from search.
   -s, --same-fs         Don't scan mounted volumens.
   -j [FILE], --json-out [FILE]
                         Save results to json file.
   -c [FILE], --csv-out [FILE]
                         Save results to csv file.
+  --no-csv-header       Don't write CSV header to the output file.
   -f, --fix             Fix vulnerable by renaming JndiLookup.class into JndiLookup.vulne.
+  --threads [THREADS]   Specify number of threads to use for parallel processing, default is 6.
   --file-log [LOGFILE]  Enable logging to log file, default is log4shell-finder.log.
   --progress [SEC]      Report progress every SEC seconds, default is 10 seconds.
   --no-errors           Suppress printing of file system errors.
@@ -385,11 +315,11 @@ Output to json contains all found items as well as host information:
 ## CSV output
 
 has following columns:
-```
-hostname,ip,fqdn,container,status,path,message,pom_version
-myserver,10.0.0.1,myserver,Package,CVE-2021-44228,/home/hynek/.m2/repository/org/apache/logging/log4j/log4j-core/2.14.1/log4j-core-2.14.1.jar,contains Log4J-2.14.1 >= 2.10.0,2.14.1
-myserver,10.0.0.1,myserver,Package,NOTOKAY,/home/hynek/.m2/repository/org/apache/logging/log4j/log4j-core/2.16.0/log4j-core-2.16.0.jar,contains Log4J-2.16.0 == 2.16.0,2.16.0
-myserver,10.0.0.1,myserver,Package,CVE_2021_4104,/home/hynek/.m2/repository/log4j/log4j/1.2.17/log4j-1.2.17.jar,"contains Log4J-1.2.17 <= 1.2.17, JMSAppender.class found",1.2.17
-myserver,10.0.0.1,myserver,Package,CVE_2021_4104,/home/hynek/.m2/repository/log4j/log4j/1.2.12/log4j-1.2.12.jar,"contains Log4J-1.x <= 1.2.17, JMSAppender.class found",1.x
-myserver,10.0.0.1,myserver,Package,MAYBESAFE,/home/hynek/war/elastic-apm-java-aws-lambda-layer-1.28.1.zip:elastic-apm-agent-1.28.1.jar,contains Log4J-2.12.1 <= 2.0-beta8 (JndiLookup.class not present),2.12.1
+```csv
+"datetime","ver","ip","fqdn","OS","Release","arch","container","status","path","message","pom_version","product"
+"2022-01-24 10:59:36","1.22pre-20220123","10.0.0.1","mylinux","Linux","5.4.0-58-generic","x86_64","Folder","CVE-2022-23302 (6.6), CVE-2022-23305 (8.1), CVE-2022-23307 (8.1)","/home/hynek/war.bak/reload4j/reload4j-1.2.18.0/org/apache/log4j","contains log4j-1.2.18.0","1.2.18.0","log4j"
+"2022-01-24 10:59:36","1.22pre-20220123","10.0.0.1","mylinux","Linux","5.4.0-58-generic","x86_64","Package","OLDSAFE","/home/hynek/war.bak/reload4j/reload4j-1.2.18.2.jar","contains reload4j-1.2.18.2","1.2.18.2","reload4j"
+"2022-01-24 10:59:36","1.22pre-20220123","10.0.0.1","mylinux","Linux","5.4.0-58-generic","x86_64","Package","OLDSAFE","/home/hynek/war.bak/reload4j/reload4j-1.2.18.1.jar","contains reload4j-1.2.18.1","1.2.18.1","reload4j"
+"2022-01-24 10:59:36","1.22pre-20220123","10.0.0.1","mylinux","Linux","5.4.0-58-generic","x86_64","Package","CVE-2019-17571 (9.8), CVE-2021-4104 (7.5), CVE-2022-23302 (6.6), CVE-2022-23305 (8.1), CVE-2022-23307 (8.1)","/home/hynek/war.bak/reload4j/log4j-1.2.17.jar","contains log4j-1.2.17","1.2.17","log4j"
+"2022-01-24 10:59:36","1.22pre-20220123","10.0.0.1","mylinux","Linux","5.4.0-58-generic","x86_64","Package","CVE-2022-23302 (6.6), CVE-2022-23305 (8.1), CVE-2022-23307 (8.1)","/home/hynek/war.bak/reload4j/reload4j-1.2.18.0.jar","contains log4j-1.2.18.0","1.2.18.0","log4j"
 ```
