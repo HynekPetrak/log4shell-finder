@@ -10,7 +10,7 @@ Python port of https://github.com/mergebase/log4j-detector log4j-detector is cop
 
 Identifies log4j (1.x), reload4j (1.2.18+) and log4j-core (2.x) versions on your file-system vulnerable to
 [CVE-2021-44228](https://mergebase.com/vulnerability/CVE-2021-44228/), 
-[CVE-2021-45046](https://mergebase.com/vulnerability/CVE-2021-45046/) and many others - see table below. 
+[CVE-2021-45046](https://mergebase.com/vulnerability/CVE-2021-45046/) and many others - see [table below](#detected-vulnerabilities). 
 It is able to find instances embedded in larger applications 
 several layers deep. Works on Linux, Windows, Mac or anywhere else Python 3.6+ runs.
 
