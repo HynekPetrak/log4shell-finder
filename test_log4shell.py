@@ -1038,7 +1038,7 @@ def output_csv(fn, host_info):
     global args
     found_items_columns = ["datetime", "ver", "ip", "fqdn",
                            "OS", "Release", "arch",
-                           "container", "status", "path", "message", "pom_version"]
+                           "container", "status", "path", "message", "pom_version", "product"]
     with open(fn, 'w', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, quoting=csv.QUOTE_ALL,
                                 skipinitialspace=True, fieldnames=found_items_columns)
