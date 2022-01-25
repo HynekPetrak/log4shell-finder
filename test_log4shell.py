@@ -1148,7 +1148,7 @@ def main():
                         default=argparse.SUPPRESS,
                         help="Save results to csv file.",
                         metavar='FILE')
-    parser.add_argument('--cvs-clean', action="store_true",
+    parser.add_argument('--csv-clean', action="store_true",
                         help='Add CLEAN status line in case no entries found')
     parser.add_argument('--no-csv-header', action="store_true",
                         help="Don't write CSV header to the output file.")
@@ -1262,7 +1262,7 @@ def main():
             fn = f"{hostname}_{ip}.json"
         output_json(fn, host_info)
 
-    if not log_item.found_items and args.cvs_clean:
+    if not log_item.found_items and args.csv_clean:
         log_item.found_items.append({
             "container": "",
             "path": "",
