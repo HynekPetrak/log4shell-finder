@@ -526,63 +526,65 @@ def scan_archive(f, path):
             if isLog4j2_12_3:
                 if hasJdbcJndiDisabled:
                     buf = " == 2.12.4"
-                    status = Status.V2_12_4  # SAFE
+                    status |= Status.V2_12_4  # SAFE
                 else:
                     buf = " == 2.12.3"
                     # status = Status.V2_12_3  # CVE_2021_44832
-                    status = Status.CVE_2021_44832
+                    status |= Status.CVE_2021_44832
             elif isLog4j2_17:
                 if hasJdbcJndiDisabled:
                     buf = " >= 2.17.1"
-                    status = Status.V2_17_1  # SAFE
+                    status |= Status.V2_17_1  # SAFE
                 else:
                     buf = " >= 2.17.0"
                     # status = Status.V2_17_0  # CVE_2021_44832
-                    status = Status.CVE_2021_44832
+                    status |= Status.CVE_2021_44832
             elif isLog4j2_16:
                 buf = " >= 2.16.0"
                 # status = Status.V2_16_0  # CVE_2021_45105
-                status = Status.CVE_2021_45105 | Status.CVE_2021_44832
+                status |= Status.CVE_2021_45105 | Status.CVE_2021_44832
             elif isLog4j_2_12_2:
                 buf = " == 2.12.2"
                 # status = Status.V2_12_2  # CVE_2021_45105
-                status = Status.CVE_2021_45105 | Status.CVE_2021_44832
+                status |= Status.CVE_2021_45105 | Status.CVE_2021_44832
             else:
                 buf = " == 2.15.0"
                 # status = Status.V2_15_0  # CVE_2021_45046
-                status = (Status.CVE_2021_45046 | Status.CVE_2021_45105 |
+                status |= (Status.CVE_2021_45046 | Status.CVE_2021_45105 |
                         Status.CVE_2021_44832)
             if hasJdbcJndiDisabled:
                 status &= ~Status.CVE_2021_44832
         else:
             buf = " >= 2.10.0"
             # status = Status.V2_10_0  # CVE_2021_44228
-            status = (Status.CVE_2021_44228 | Status.CVE_2021_45046 |
+            status |= (Status.CVE_2021_44228 | Status.CVE_2021_45046 |
                     Status.CVE_2021_45105 | Status.CVE_2021_44832)
     elif isLog4j2_3_1:
         if hasJdbcJndiDisabled:
             buf = " >= 2.3.2"
             # status = Status.V2_3_2  # SAFE
-            status = Status.CVE_2017_5645
+            #status |= Status.CVE_2017_5645
         else:
             buf = " == 2.3.1"
             # status = Status.V2_3_1  # CVE_2021_44832
-            status = Status.CVE_2017_5645 | Status.CVE_2021_44832
+            status |= Status.CVE_2021_44832
     elif hasCVE_2017_5645:
         buf = " <= 2.8.1"
         # status = Status.V2_8_1
-        status = Status.CVE_2017_5645
+        # status |= Status.CVE_2017_5645
     elif not hasJndiLookup:
         if not buf:
             buf += " <= 2.0-beta8"
             # status = Status.V2_0_BETA8
-            status = Status.CVE_2017_5645
+            # status |= Status.CVE_2017_5645
     else:
         buf = " >= 2.0-beta9 (< 2.10.0)"
         # status = Status.V2_0_BETA9  # CVE_2021_44228
-        status = (Status.CVE_2021_44228 | Status.CVE_2021_45046 |
-                Status.CVE_2021_45105 | Status.CVE_2021_44832 |
-                Status.CVE_2017_5645)
+        status |= (Status.CVE_2021_44228 | Status.CVE_2021_45046 |
+                Status.CVE_2021_45105 | Status.CVE_2021_44832)
+
+    if hasCVE_2017_5645:
+        status |= Status.CVE_2017_5645
 
     buf = prefix + buf
     
@@ -776,14 +778,14 @@ def check_class(class_file):
                                  version, product, container=Container.FOLDER)
                         return
                     else:
-                        status |= Status.CVE_2017_5645 | Status.CVE_2021_44832
+                        status |= Status.CVE_2021_44832
                         log_item(parent, status,
                                  msg + " == 2.3.1",
                                  version, product, container=Container.FOLDER)
                         return
 
         # status |= Status.V2_0_BETA9  # CVE_2021_44228
-        status |= (Status.CVE_2017_5645 | Status.CVE_2021_44228 |
+        status |= (Status.CVE_2021_44228 |
                 Status.CVE_2021_45046 | Status.CVE_2021_45105 |
                 Status.CVE_2021_44832)
         if args.fix:
@@ -1047,7 +1049,7 @@ def configure_logging():
         log.addFilter(lambda record: record.levelno != logging.ERROR)
 
 
-def print_stats_and_exit():
+def print_stats():
     hits = False
     cnt = Counter([t for s in log_item.found_items
                    for t in s["status"]])
@@ -1146,6 +1148,8 @@ def main():
                         default=argparse.SUPPRESS,
                         help="Save results to csv file.",
                         metavar='FILE')
+    parser.add_argument('--cvs-clean', action="store_true",
+                        help='Add CLEAN status line in case no entries found')
     parser.add_argument('--no-csv-header', action="store_true",
                         help="Don't write CSV header to the output file.")
     parser.add_argument('-f', '--fix', action="store_true",
@@ -1249,6 +1253,7 @@ def main():
             analyze_directory(f, blacklist)
 
     log.info("")
+    print_stats()
 
     if "json_out" in args:
         if args.json_out:
@@ -1257,6 +1262,17 @@ def main():
             fn = f"{hostname}_{ip}.json"
         output_json(fn, host_info)
 
+    if not log_item.found_items and args.cvs_clean:
+        log_item.found_items.append({
+            "container": "",
+            "path": "",
+            "status": ["CLEAN"],
+            "message": "No log4j instances found",
+            "pom_version": "",
+            "product": "",
+        })
+
+
     if "csv_out" in args:
         if args.csv_out:
             fn = args.csv_out
@@ -1264,7 +1280,6 @@ def main():
             fn = f"{hostname}_{ip}.csv"
         output_csv(fn, host_info)
 
-    print_stats_and_exit()
 
 
 main()
