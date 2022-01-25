@@ -27,18 +27,18 @@ Java archive extensions searched: `.zip`, `.jar`, `.war`, `.ear`, `.aar`, `.jpi`
 
 | Detects | CVE            | CVSSv3 | Severity | Java  | Vuln from  | Vulnerable to                  | Fixed in            | library |
 | :-----  | :------------- | :----- | :------- | :---- | :--------- | :----------------------------- | :------------------ | :--     |
-| YES     | CVE-2021-44228 | 10,0   | Critical | 8     | 2.0-beta9  | 2.14.1                         | 2.15.0              | log4jv2 |
-| YES     | CVE-2017-5645  | 9,8    | Critical | 7     | 2.0-alpha1 | 2.8.1                          | 2.8.2               | log4jv2 |
-| YES     | CVE-2019-17571 | 9,8    | Critical |       | 1.2.0      | 1.2.17                         | nofix               | log4jv1 |
-| YES     | CVE-2021-45046 | 9,0    | Critical | 7/8   | 2.0-beta9  | 2.15.0 excluding 2.12.2        | 2.12.2/2.16.0       | log4jv2 |
-| YES     | CVE-2022-23305 | 8,1    | High     |       | 1.2.0      | 1.2.17                         | nofix / 1.2.18.1    | log4jv1, reload4j |
-| YES     | CVE-2022-23307 | 8,1    | High     |       | 1.2.0      | 1.2.17                         | nofix / 1.2.18.1    | log4jv1, reload4j |
-| YES     | CVE-2021-4104  | 7,5    | High     | -     | 1.0        | 1.2.17                         | nofix               | log4jv1 |
-| YES     | CVE-2021-44832 | 6,6    | Medium   | 6/7/8 | 2.0-alpha7 | 2.17.0, excluding 2.3.2/2.12.4 | 2.3.2/2.12.4/2.17.1 | log4jv2 |
-| -       | CVE-2021-42550 | 6,6    | Medium   | -     | 1.0        | 1.2.7                          | 1.2.8               | logback |
-| YES     | CVE-2022-23302 | 6,6    | Medium   |       | 1.0        | 1.2.17                         | nofix / 1.2.18.1    | log4jv1, reload4j |
-| YES     | CVE-2021-45105 | 5,9    | Medium   | 6/7/8 | 2.0-beta9  | 2.16.0, excluding 2.12.3       | 2.3.1/2.12.3/2.17.0 | log4jv2 |
-| -       | CVE-2020-9488  | 3,7    | Low      | 7/8   | 2.0-alpha1 | 2.13.1                         | 2.12.3/2.13.2       | log4jv2 |
+| YES     | CVE-2021-44228 | 10.0   | Critical | 8     | 2.0-beta9  | 2.14.1                         | 2.15.0              | log4jv2 |
+| YES     | CVE-2017-5645  | 9.8    | Critical | 7     | 2.0-alpha1 | 2.8.1                          | 2.8.2               | log4jv2 |
+| YES     | CVE-2019-17571 | 9.8    | Critical |       | 1.2.0      | 1.2.17                         | nofix               | log4jv1 |
+| YES     | CVE-2021-45046 | 9.0    | Critical | 7/8   | 2.0-beta9  | 2.15.0 excluding 2.12.2        | 2.12.2/2.16.0       | log4jv2 |
+| YES     | CVE-2022-23305 | 8.1    | High     |       | 1.2.0      | 1.2.17                         | nofix / 1.2.18.1    | log4jv1, reload4j |
+| YES     | CVE-2022-23307 | 8.1    | High     |       | 1.2.0      | 1.2.17                         | nofix / 1.2.18.1    | log4jv1, reload4j |
+| YES     | CVE-2021-4104  | 7.5    | High     | -     | 1.0        | 1.2.17                         | nofix               | log4jv1 |
+| YES     | CVE-2021-44832 | 6.6    | Medium   | 6/7/8 | 2.0-alpha7 | 2.17.0, excluding 2.3.2/2.12.4 | 2.3.2/2.12.4/2.17.1 | log4jv2 |
+| -       | CVE-2021-42550 | 6.6    | Medium   | -     | 1.0        | 1.2.7                          | 1.2.8               | logback |
+| YES     | CVE-2022-23302 | 6.6    | Medium   |       | 1.0        | 1.2.17                         | nofix / 1.2.18.1    | log4jv1, reload4j |
+| YES     | CVE-2021-45105 | 5.9    | Medium   | 6/7/8 | 2.0-beta9  | 2.16.0, excluding 2.12.3       | 2.3.1/2.12.3/2.17.0 | log4jv2 |
+| -       | CVE-2020-9488  | 3.7    | Low      | 7/8   | 2.0-alpha1 | 2.13.1                         | 2.12.3/2.13.2       | log4jv2 |
 
 Each instance is reported with apropriate list of CVEs. For each CVE log4j library file is being analyzed whether the recommended 
 workarounds (e.g. JndiLookup.class or JMSAppender.class removed) has been applied and in that case is considered as non-vulnerable.

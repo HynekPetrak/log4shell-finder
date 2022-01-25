@@ -179,6 +179,19 @@ class Status(Flag):
             CVE_2022_23302)
     SAFE = V2_3_2 | V2_12_4 | V2_17_1
 
+vuldesc = {
+        Status.CVE_2021_44228: ["CVE-2021-44228", "10.0", "Critical", "8", "2.0-beta9", "2.14.1", "2.15.0"],
+        Status.CVE_2017_5645: ["CVE-2017-5645", "9.8", "Critical", "7", "2.0-alpha1", "2.8.1", "2.8.2"],
+        Status.CVE_2019_17571: ["CVE-2019-17571", "9.8", "Critical", "", "1.2.0", "1.2.17", "nofix"],
+        Status.CVE_2021_45046: ["CVE-2021-45046", "9.0", "Critical", "7/8", "2.0-beta9", "2.15.0 excluding 2.12.2", "2.12.2/2.16.0"],
+        Status.CVE_2022_23305: ["CVE-2022-23305", "8.1", "High", "", "1.2.0", "1.2.17", "nofix / 1.2.18.1"],
+        Status.CVE_2022_23307: ["CVE-2022-23307", "8.1", "High", "", "1.2.0", "1.2.17", "nofix / 1.2.18.1"],
+        Status.CVE_2021_4104: ["CVE-2021-4104", "7.5", "High", "-", "1.0", "1.2.17"],
+        Status.CVE_2021_44832: ["CVE-2021-44832", "6.6", "Medium", "6/7/8", "2.0-alpha7", "2.17.0, excluding 2.3.2/2.12.4", "2.3.2/2.12.4/2.17.1"],
+        Status.CVE_2022_23302: ["CVE-2022-23302", "6.6", "Medium", "", "1.0", "1.2.17", "nofix / 1.2.18.1"],
+        Status.CVE_2021_45105: ["CVE-2021-45105", "5.9", "Medium", "6/7/8", "2.0-beta9", "2.16.0, excluding 2.12.3", "2.3.1/2.12.3/2.17.0"],
+        }
+
 
 def get_status_text(status):
 
@@ -190,26 +203,14 @@ def get_status_text(status):
     if log.isEnabledFor(logging.DEBUG):
         vulns.append(f"*{status.value}*")
     
-    if status & Status.CVE_2021_44832:
-        vulns.append("CVE-2021-44832 (6.6)")
-    if status & Status.CVE_2021_44228 and not (status & Status.NOJNDILOOKUP):
-        vulns.append("CVE-2021-44228 (10.0)")
-    if status & Status.CVE_2021_45046 and not (status & Status.NOJNDILOOKUP):
-        vulns.append("CVE-2021-45046 (9.0)")
-    if status & Status.CVE_2021_45105:
-        vulns.append("CVE-2021-45105 (5.9)")
-    if status & Status.CVE_2021_4104:
-        vulns.append("CVE-2021-4104 (7.5)")
-    if status & Status.CVE_2017_5645:
-        vulns.append("CVE-2017-5645 (9.8)")
-    if status & Status.CVE_2019_17571:
-        vulns.append("CVE-2019-17571 (9.8)")
-    if status & Status.CVE_2022_23307:
-        vulns.append("CVE-2022-23307 (8.1)")
-    if status & Status.CVE_2022_23305:
-        vulns.append("CVE-2022-23305 (8.1)")
-    if status & Status.CVE_2022_23302:
-        vulns.append("CVE-2022-23302 (6.6)")
+    for s, d in vuldesc.items():
+        if status & s:
+            v = d[0] + "(" + d[1] + ")"
+            if log.isEnabledFor(logging.DEBUG):
+                v += f" {d[4]} > {d[5]}"
+            vulns.append(v)
+    #if status & Status.CVE_2021_44228 and not (status & Status.NOJNDILOOKUP):
+    #if status & Status.CVE_2021_45046 and not (status & Status.NOJNDILOOKUP):
     if not vulns and (status & Status.SAFE):
         vulns.append("SAFE")
         flag = "-"
