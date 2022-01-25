@@ -47,6 +47,7 @@ JMSAPPENDER = "net/JMSAppender"
 JDBCAPPENDER = "jdbc/JDBCAppender"
 JDBCPATTPARSER = "jdbc/JdbcPatternParser"
 JNDILOOKUP = "core/lookup/JndiLookup"
+CFGSTRSUBST = "core/lookup/ConfigurationStrSubstitutor"
 JNDIMANAGER = "core/net/JndiManager"
 JNDIUTIL = "net/JNDIUtil"
 SOCKETSERVER = "net/SocketServer"
@@ -76,6 +77,7 @@ CLASSES = [
     JDBCAPPENDER,
     JDBCPATTPARSER,
     JNDILOOKUP,
+    CFGSTRSUBST,
     JNDIMANAGER,
     JNDIUTIL,
     SOCKETSERVER,
@@ -161,11 +163,16 @@ class Status(Flag):
     CVE_2022_23307 = auto()
     CVE_2022_23305 = auto()
     CVE_2022_23302 = auto()
-    CVE_2017_5645 = V2_8_1 | V2_0_BETA9 | V2_0_BETA8 | V2_3_1 | V2_3_2
-    CVE_2021_44228 = V2_10_0 | V2_0_BETA9
-    CVE_2021_45046 = CVE_2021_44228 | V2_15_0
-    CVE_2021_45105 = CVE_2021_45046 | V2_12_2 | V2_16_0
-    CVE_2021_44832 = V2_0_BETA8 | CVE_2021_45105 | V2_3_1 | V2_12_3 | V2_17_0
+    CVE_2017_5645 = auto()
+    CVE_2021_44228 = auto()
+    CVE_2021_45046 = auto()
+    CVE_2021_45105 = auto()
+    CVE_2021_44832 = auto()
+    # CVE_2017_5645 = V2_8_1 | V2_0_BETA9 | V2_0_BETA8 | V2_3_1 | V2_3_2
+    # CVE_2021_44228 = V2_10_0 | V2_0_BETA9
+    # CVE_2021_45046 = CVE_2021_44228 | V2_15_0
+    # CVE_2021_45105 = CVE_2021_45046 | V2_12_2 | V2_16_0
+    # CVE_2021_44832 = V2_0_BETA8 | CVE_2021_45105 | V2_3_1 | V2_12_3 | V2_17_0
     VULNERABLE = (CVE_2021_44832 | CVE_2021_44228 | CVE_2021_45046 |
             CVE_2021_45105 | CVE_2021_4104 | CVE_2017_5645 |
             CVE_2019_17571 | CVE_2022_23307 | CVE_2022_23305 |
@@ -262,9 +269,11 @@ def get_version_from_manifest(lines):
             kv[l[0]] = l[1].strip()
         # Implementation-Title: log4j
         # Implementation-Version: 1.1.3
-        if ("Implementation-Title" in kv and
-                "Implementation-Version" in kv):
-            return kv["Implementation-Title"], kv['Implementation-Version']
+        if "Implementation-Title" in kv:
+            product = kv["Implementation-Title"]
+            if (product.lower().startswith(('log4j', 'reload4j')) and
+                    "Implementation-Version" in kv):
+                return kv["Implementation-Title"], kv['Implementation-Version']
     except:
         raise
         pass
@@ -332,6 +341,7 @@ def scan_archive(f, path):
             elif not fnl.endswith(CLASS_EXTS):
                 continue
             elif fn.endswith(CLASS_VARIANTS[JDBC_DSCS]):
+                print("test")
                 with zf.open(fn, "r") as inner_class:
                     class_content = inner_class.read()
                     if class_content.find(IS_CVE_2021_44832_SAFE) >= 0:
@@ -347,6 +357,8 @@ def scan_archive(f, path):
                         isLog4j2_12_2_override = True
                     else:
                         isLog4j2_12_2 = True
+            elif fn.endswith(CLASS_VARIANTS[CFGSTRSUBST]):
+                isLog4j2_17 = True
             elif fn.endswith(CLASS_VARIANTS[JNDIMANAGER]):
                 hasJndiManager = True
                 with zf.open(fn, "r") as inner_class:
@@ -500,6 +512,13 @@ def scan_archive(f, path):
         prefix = f"contains {product}-"
     prefix += version
     buf = ""
+    
+    # CVE_2017_5645 = V2_8_1 | V2_0_BETA9 | V2_0_BETA8 | V2_3_1 | V2_3_2
+    # CVE_2021_44228 = V2_10_0 | V2_0_BETA9
+    # CVE_2021_45046 = CVE_2021_44228 | V2_15_0
+    # CVE_2021_45105 = CVE_2021_45046 | V2_12_2 | V2_16_0
+    # CVE_2021_44832 = V2_0_BETA8 | CVE_2021_45105 | V2_3_1 | V2_12_3 | V2_17_0
+    # SAFE = V2_3_2 | V2_12_4 | V2_17_1
 
     if isLog4j2_10:
         if isRecent:
@@ -509,43 +528,60 @@ def scan_archive(f, path):
                     status = Status.V2_12_4  # SAFE
                 else:
                     buf = " == 2.12.3"
-                    status = Status.V2_12_3  # CVE_2021_44832
+                    # status = Status.V2_12_3  # CVE_2021_44832
+                    status = Status.CVE_2021_44832
             elif isLog4j2_17:
                 if hasJdbcJndiDisabled:
                     buf = " >= 2.17.1"
                     status = Status.V2_17_1  # SAFE
                 else:
-                    buf = " == 2.17.0"
-                    status = Status.V2_17_0  # CVE_2021_44832
+                    buf = " >= 2.17.0"
+                    # status = Status.V2_17_0  # CVE_2021_44832
+                    status = Status.CVE_2021_44832
             elif isLog4j2_16:
-                buf = " == 2.16.0"
-                status = Status.V2_16_0  # CVE_2021_45105
+                buf = " >= 2.16.0"
+                # status = Status.V2_16_0  # CVE_2021_45105
+                status = Status.CVE_2021_45105 | Status.CVE_2021_44832
             elif isLog4j_2_12_2:
                 buf = " == 2.12.2"
-                status = Status.V2_12_2  # CVE_2021_45105
+                # status = Status.V2_12_2  # CVE_2021_45105
+                status = Status.CVE_2021_45105 | Status.CVE_2021_44832
             else:
                 buf = " == 2.15.0"
-                status = Status.V2_15_0  # CVE_2021_45046
+                # status = Status.V2_15_0  # CVE_2021_45046
+                status = (Status.CVE_2021_45046 | Status.CVE_2021_45105 |
+                        Status.CVE_2021_44832)
+            if hasJdbcJndiDisabled:
+                status &= ~Status.CVE_2021_44832
         else:
             buf = " >= 2.10.0"
-            status = Status.V2_10_0  # CVE_2021_44228
+            # status = Status.V2_10_0  # CVE_2021_44228
+            status = (Status.CVE_2021_44228 | Status.CVE_2021_45046 |
+                    Status.CVE_2021_45105 | Status.CVE_2021_44832)
     elif isLog4j2_3_1:
         if hasJdbcJndiDisabled:
             buf = " >= 2.3.2"
-            status = Status.V2_3_2  # SAFE
+            # status = Status.V2_3_2  # SAFE
+            status = Status.CVE_2017_5645
         else:
             buf = " == 2.3.1"
-            status = Status.V2_3_1  # CVE_2021_44832
+            # status = Status.V2_3_1  # CVE_2021_44832
+            status = Status.CVE_2017_5645 | Status.CVE_2021_44832
     elif hasCVE_2017_5645:
         buf = " <= 2.8.1"
-        status = Status.V2_8_1
+        # status = Status.V2_8_1
+        status = Status.CVE_2017_5645
     elif not hasJndiLookup:
         if not buf:
             buf += " <= 2.0-beta8"
-            status = Status.V2_0_BETA8
+            # status = Status.V2_0_BETA8
+            status = Status.CVE_2017_5645
     else:
         buf = " >= 2.0-beta9 (< 2.10.0)"
-        status = Status.V2_0_BETA9  # CVE_2021_44228
+        # status = Status.V2_0_BETA9  # CVE_2021_44228
+        status = (Status.CVE_2021_44228 | Status.CVE_2021_45046 |
+                Status.CVE_2021_45105 | Status.CVE_2021_44832 |
+                Status.CVE_2017_5645)
 
     buf = prefix + buf
     
@@ -713,7 +749,8 @@ def check_class(class_file):
             if f.read().find(IN_2_8_2) < 0:
                 hasCVE_2017_5645 = True
                 msg += " <= 2.8.1"
-                status |= Status.V2_8_1
+                # status |= Status.V2_8_1
+                status |= Status.CVE_2017_5645
 
     jndilookup_path = check_path_exists(log4j_dir, JNDILOOKUP)
     if not jndilookup_path:
@@ -727,7 +764,6 @@ def check_class(class_file):
             if f.read().find(IS_CVE_2021_44832_SAFE) >= 0:
                 hasJdbcJndiDisabled = True
 
-
     if not check_path_exists(log4j_dir, NOSQL_APPENDER):
         fn = check_path_exists(log4j_dir, JNDIMANAGER)
         if fn:
@@ -739,12 +775,16 @@ def check_class(class_file):
                                  version, product, container=Container.FOLDER)
                         return
                     else:
-                        log_item(parent, status | Status.V2_3_1,  # CVE_2021_44832,
+                        status |= Status.CVE_2017_5645 | Status.CVE_2021_44832
+                        log_item(parent, status,
                                  msg + " == 2.3.1",
                                  version, product, container=Container.FOLDER)
                         return
 
-        status |= Status.V2_0_BETA9  # CVE_2021_44228
+        # status |= Status.V2_0_BETA9  # CVE_2021_44228
+        status |= (Status.CVE_2017_5645 | Status.CVE_2021_44228 |
+                Status.CVE_2021_45046 | Status.CVE_2021_45105 |
+                Status.CVE_2021_44832)
         if args.fix:
             fix_msg = fix_jndilookup_class(jndilookup_path)
             if fix_msg:
@@ -761,7 +801,8 @@ def check_class(class_file):
             with open(fn, "rb") as f:
                 fcontent = f.read()
                 if fcontent.find(NOT_IN_2_12_2) == -1:
-                    log_item(parent, status | Status.V2_12_2,  # CVE_2021_45105,
+                    status |= Status.CVE_2021_45105 | Status.CVE_2021_44832
+                    log_item(parent, status,
                              msg + " == 2.12.2",
                              version, product, container=Container.FOLDER)
                     return
@@ -773,7 +814,8 @@ def check_class(class_file):
                                      version, product, container=Container.FOLDER)
                             return
                         else:
-                            log_item(parent, status | Status.V2_17_0,  # CVE_2021_44832,
+                            status |= Status.CVE_2021_44832
+                            log_item(parent, status,
                                      msg + " == 2.17.0",
                                      version, product, container=Container.FOLDER)
                             return
@@ -784,22 +826,45 @@ def check_class(class_file):
                                      version, product, container=Container.FOLDER)
                             return
                         else:
-                            log_item(parent, status | Status.V2_12_3,  # CVE_2021_44832,
+                            status |= Status.CVE_2021_44832
+                            log_item(parent, status,
                                      msg + " == 2.12.3",
                                      version, product, container=Container.FOLDER)
                             return
+
+    # CVE_2017_5645 = V2_8_1 | V2_0_BETA9 | V2_0_BETA8 | V2_3_1 | V2_3_2
+    # CVE_2021_44228 = V2_10_0 | V2_0_BETA9
+    # CVE_2021_45046 = CVE_2021_44228 | V2_15_0
+    # CVE_2021_45105 = CVE_2021_45046 | V2_12_2 | V2_16_0
+    # CVE_2021_44832 = V2_0_BETA8 | CVE_2021_45105 | V2_3_1 | V2_12_3 | V2_17_0
+    # SAFE = V2_3_2 | V2_12_4 | V2_17_1
+
+        elif check_path_exists(log4j_dir, CFGSTRSUBST):
+            if hasJdbcJndiDisabled:
+                log_item(parent, status | Status.V2_17_1,  # SAFE,
+                         msg + " >= 2.17.1",
+                         version, product, container=Container.FOLDER)
+                return
+            else:
+                status |= Status.CVE_2021_44832
+                log_item(parent, status,
+                         msg + " == 2.17.0",
+                         version, product, container=Container.FOLDER)
+                return
 
         fn = check_path_exists(log4j_dir, JNDIMANAGER)
         if fn:
             with open(fn, "rb") as f:
                 fcontent = f.read()
                 if fcontent.find(IN_2_16_0) >= 0:
-                    log_item(parent, status | Status.V2_16_0,  # CVE_2021_45105,
+                    status |= Status.CVE_2021_45105 | Status.CVE_2021_44832
+                    log_item(parent, status,
                              msg + " == 2.16.0",
                              version, product, container=Container.FOLDER)
                     return
                 elif fcontent.find(IN_2_15_0) >= 0:
-                    status |= Status.V2_15_0  # CVE_2021_45046
+                    status |= (Status.CVE_2021_45046 | Status.CVE_2021_45105 |
+                            Status.CVE_2021_44832)
                     if args.fix:
                         fix_msg = fix_jndilookup_class(jndilookup_path)
                         if fix_msg:
@@ -809,7 +874,8 @@ def check_class(class_file):
                              version, product, container=Container.FOLDER)
                     return
 
-    status |= Status.V2_10_0  # CVE_2021_44228
+    status |= (Status.CVE_2021_44228 | Status.CVE_2021_45046 |
+            Status.CVE_2021_45105 | Status.CVE_2021_44832)
     if args.fix:
         fix_msg = fix_jndilookup_class(jndilookup_path)
         if fix_msg:
