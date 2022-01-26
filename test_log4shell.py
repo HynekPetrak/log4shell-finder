@@ -266,11 +266,11 @@ log_item.found_items = []
 def get_version_from_manifest(lines):
     try:
         kv = {}
-        for l in lines:
-            if ":" not in l:
+        for line in lines:
+            if ":" not in line:
                 continue
-            l = l.split(":", 1)
-            kv[l[0]] = l[1].strip()
+            line = line.split(":", 1)
+            kv[line[0]] = line[1].strip()
         # Implementation-Title: log4j
         # Implementation-Version: 1.1.3
         if "Implementation-Title" in kv:
