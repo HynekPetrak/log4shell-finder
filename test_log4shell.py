@@ -15,6 +15,7 @@ import concurrent.futures
 from enum import Flag, Enum, auto
 from shlex import shlex
 from collections import Counter
+from datetime import timedelta
 try:
     import win32file
     import win32api
@@ -1070,7 +1071,7 @@ def print_stats():
         time.time()-report_progress.start_time)
     if not cnt:
         log.info("   No instances of Log4J library.")
-        return
+        return hits
 
     for k in sorted(cnt.keys()):
         v = cnt[k]
@@ -1092,8 +1093,7 @@ def print_stats():
                      v, s, k)
 
     log.info("")
-    if hits:
-        sys.exit(2)
+    return hits
 
 
 def output_json(fn, host_info):
@@ -1110,7 +1110,9 @@ def output_csv(fn, host_info):
     global args
     found_items_columns = ["datetime", "ver", "ip", "fqdn",
                            "OS", "Release", "arch",
-                           "container", "status", "path", "message", "pom_version", "product"]
+                           "container", "status", "path", "message",
+                           "pom_version", "product", "runtime",
+                           "folders", "files", ]
     with open(fn, 'w', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, quoting=csv.QUOTE_ALL,
                                 skipinitialspace=True, fieldnames=found_items_columns)
@@ -1153,6 +1155,8 @@ def main():
                         metavar='FILE')
     parser.add_argument('--csv-clean', action="store_true",
                         help='Add CLEAN status line in case no entries found')
+    parser.add_argument('--csv-stats', action="store_true",
+                        help='Add STATS line into csv output.')
     parser.add_argument('--no-csv-header', action="store_true",
                         help="Don't write CSV header to the output file.")
     parser.add_argument('-f', '--fix', action="store_true",
@@ -1252,14 +1256,24 @@ def main():
             log.info("[I] Going to scan all detected local drives: " +
                      ", ".join(drives))
             for drive in drives:
-                scanned_paths.append(drive)
+                st = time.time()
+                sfo = analyze_directory.dirs_checked
+                sfi = process_file.files_checked
                 analyze_directory(drive, blacklist)
+                scanned_paths.append((drive, timedelta(seconds=time.time()-st),
+                                      process_file.files_checked - sfo,
+                                      analyze_directory.dirs_checked - sfo,))
         else:
-            scanned_paths.append(drive)
+            st = time.time()
+            sfo = analyze_directory.dirs_checked
+            sfi = process_file.files_checked
             analyze_directory(f, blacklist)
+            scanned_paths.append((f, timedelta(seconds=time.time()-st),
+                                  process_file.files_checked - sfo,
+                                  analyze_directory.dirs_checked - sfo,))
 
     log.info("")
-    print_stats()
+    hits = print_stats()
 
     if "json_out" in args:
         if args.json_out:
@@ -1272,11 +1286,28 @@ def main():
         for path in scanned_paths:
             log_item.found_items.append({
                 "container": "",
-                "path": path,
+                "path": path[0],
                 "status": ["CLEAN"],
                 "message": "No log4j instances found",
                 "pom_version": "",
                 "product": "",
+                "runtime": path[1],
+                "folders": path[3],
+                "files": path[2],
+            })
+
+    if args.csv_stats:
+        for path in scanned_paths:
+            log_item.found_items.append({
+                "container": "",
+                "path": path[0],
+                "status": ["STATS"],
+                "message": "Statistics of " + host_info['cmdline'],
+                "pom_version": "",
+                "product": "",
+                "runtime": path[1],
+                "folders": path[3],
+                "files": path[2],
             })
 
     if "csv_out" in args:
@@ -1285,6 +1316,9 @@ def main():
         else:
             fn = f"{hostname}_{ip}.csv"
         output_csv(fn, host_info)
+
+    if hits:
+        sys.exit(2)
 
 
 main()
