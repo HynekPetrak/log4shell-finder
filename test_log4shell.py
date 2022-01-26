@@ -1261,7 +1261,7 @@ def main():
                 sfi = process_file.files_checked
                 analyze_directory(drive, blacklist)
                 scanned_paths.append((drive, timedelta(seconds=time.time()-st),
-                                      process_file.files_checked - sfo,
+                                      process_file.files_checked - sfi,
                                       analyze_directory.dirs_checked - sfo,))
         else:
             st = time.time()
@@ -1269,7 +1269,7 @@ def main():
             sfi = process_file.files_checked
             analyze_directory(f, blacklist)
             scanned_paths.append((f, timedelta(seconds=time.time()-st),
-                                  process_file.files_checked - sfo,
+                                  process_file.files_checked - sfi,
                                   analyze_directory.dirs_checked - sfo,))
 
     log.info("")
