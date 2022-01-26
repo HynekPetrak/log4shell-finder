@@ -93,7 +93,7 @@ CLASSES = [
     ABSSOCKETSRV,
     FILOBJINPSTREAM,
     CHAINSAW,
-    ]
+]
 
 progress = None
 
@@ -127,8 +127,9 @@ IS_CVE_2021_44832_SAFE = b"JNDI must be enabled by setting log4j2.enableJndiJdbc
 # This is part of fix for CVE-2017-5645 in "AbstractSocketServer.java" of 2.8.2
 IN_2_8_2 = b"Additional classes to allow deserialization"
 
-#This disappears from JMSSink in fix of CVE-2022-23303
+# This disappears from JMSSink in fix of CVE-2022-23303
 IN_JMSSINK = b"Could not find name "
+
 
 class FileType(Enum):
     CLASS = 0
@@ -174,23 +175,24 @@ class Status(Flag):
     # CVE_2021_45105 = CVE_2021_45046 | V2_12_2 | V2_16_0
     # CVE_2021_44832 = V2_0_BETA8 | CVE_2021_45105 | V2_3_1 | V2_12_3 | V2_17_0
     VULNERABLE = (CVE_2021_44832 | CVE_2021_44228 | CVE_2021_45046 |
-            CVE_2021_45105 | CVE_2021_4104 | CVE_2017_5645 |
-            CVE_2019_17571 | CVE_2022_23307 | CVE_2022_23305 |
-            CVE_2022_23302)
+                  CVE_2021_45105 | CVE_2021_4104 | CVE_2017_5645 |
+                  CVE_2019_17571 | CVE_2022_23307 | CVE_2022_23305 |
+                  CVE_2022_23302)
     SAFE = V2_3_2 | V2_12_4 | V2_17_1
 
+
 vuldesc = {
-        Status.CVE_2021_44228: ["CVE-2021-44228", "10.0", "Critical", "8", "2.0-beta9", "2.14.1", "2.15.0"],
-        Status.CVE_2017_5645: ["CVE-2017-5645", "9.8", "Critical", "7", "2.0-alpha1", "2.8.1", "2.8.2"],
-        Status.CVE_2019_17571: ["CVE-2019-17571", "9.8", "Critical", "", "1.2.0", "1.2.17", "nofix"],
-        Status.CVE_2021_45046: ["CVE-2021-45046", "9.0", "Critical", "7/8", "2.0-beta9", "2.15.0 excluding 2.12.2", "2.12.2/2.16.0"],
-        Status.CVE_2022_23305: ["CVE-2022-23305", "8.1", "High", "", "1.2.0", "1.2.17", "nofix / 1.2.18.1"],
-        Status.CVE_2022_23307: ["CVE-2022-23307", "8.1", "High", "", "1.2.0", "1.2.17", "nofix / 1.2.18.1"],
-        Status.CVE_2021_4104: ["CVE-2021-4104", "7.5", "High", "-", "1.0", "1.2.17"],
-        Status.CVE_2021_44832: ["CVE-2021-44832", "6.6", "Medium", "6/7/8", "2.0-alpha7", "2.17.0, excluding 2.3.2/2.12.4", "2.3.2/2.12.4/2.17.1"],
-        Status.CVE_2022_23302: ["CVE-2022-23302", "6.6", "Medium", "", "1.0", "1.2.17", "nofix / 1.2.18.1"],
-        Status.CVE_2021_45105: ["CVE-2021-45105", "5.9", "Medium", "6/7/8", "2.0-beta9", "2.16.0, excluding 2.12.3", "2.3.1/2.12.3/2.17.0"],
-        }
+    Status.CVE_2021_44228: ["CVE-2021-44228", "10.0", "Critical", "8", "2.0-beta9", "2.14.1", "2.15.0"],
+    Status.CVE_2017_5645: ["CVE-2017-5645", "9.8", "Critical", "7", "2.0-alpha1", "2.8.1", "2.8.2"],
+    Status.CVE_2019_17571: ["CVE-2019-17571", "9.8", "Critical", "", "1.2.0", "1.2.17", "nofix"],
+    Status.CVE_2021_45046: ["CVE-2021-45046", "9.0", "Critical", "7/8", "2.0-beta9", "2.15.0 excluding 2.12.2", "2.12.2/2.16.0"],
+    Status.CVE_2022_23305: ["CVE-2022-23305", "8.1", "High", "", "1.2.0", "1.2.17", "nofix / 1.2.18.1"],
+    Status.CVE_2022_23307: ["CVE-2022-23307", "8.1", "High", "", "1.2.0", "1.2.17", "nofix / 1.2.18.1"],
+    Status.CVE_2021_4104: ["CVE-2021-4104", "7.5", "High", "-", "1.0", "1.2.17"],
+    Status.CVE_2021_44832: ["CVE-2021-44832", "6.6", "Medium", "6/7/8", "2.0-alpha7", "2.17.0, excluding 2.3.2/2.12.4", "2.3.2/2.12.4/2.17.1"],
+    Status.CVE_2022_23302: ["CVE-2022-23302", "6.6", "Medium", "", "1.0", "1.2.17", "nofix / 1.2.18.1"],
+    Status.CVE_2021_45105: ["CVE-2021-45105", "5.9", "Medium", "6/7/8", "2.0-beta9", "2.16.0, excluding 2.12.3", "2.3.1/2.12.3/2.17.0"],
+}
 
 
 def get_status_text(status):
@@ -202,15 +204,15 @@ def get_status_text(status):
 
     if log.isEnabledFor(logging.DEBUG):
         vulns.append(f"*{status.value}*")
-    
+
     for s, d in vuldesc.items():
         if status & s:
             v = d[0] + "(" + d[1] + ")"
             if log.isEnabledFor(logging.DEBUG):
                 v += f" {d[4]} > {d[5]}"
             vulns.append(v)
-    #if status & Status.CVE_2021_44228 and not (status & Status.NOJNDILOOKUP):
-    #if status & Status.CVE_2021_45046 and not (status & Status.NOJNDILOOKUP):
+    # if status & Status.CVE_2021_44228 and not (status & Status.NOJNDILOOKUP):
+    # if status & Status.CVE_2021_45046 and not (status & Status.NOJNDILOOKUP):
     if not vulns and (status & Status.SAFE):
         vulns.append("SAFE")
         flag = "-"
@@ -241,7 +243,7 @@ def log_item(path, status, message, pom_version="unknown", product="log4j", cont
         return
 
     flag, vulns = get_status_text(status)
-    
+
     if status & Status.NOJNDILOOKUP:
         message += ", JndiLookup.class not found"
 
@@ -427,7 +429,6 @@ def scan_archive(f, path):
                       f" isLog4j2_12_2_override = {isLog4j2_12_2_override}, " +
                       f"isLog4j2_17 = {isLog4j2_17} ")
 
-
         isLog4j2 = False
         isLog4j_2_10_0 = False
         isLog4j_2_12_2 = False
@@ -469,7 +470,8 @@ def scan_archive(f, path):
                 if log.isEnabledFor(logging.DEBUG):
                     log.debug(
                         f"MANIFEST.MF found at {path}:{pom_path}")
-                product, version = get_version_from_manifest(lines) or (product, version)
+                product, version = get_version_from_manifest(
+                    lines) or (product, version)
 
     if log.isEnabledFor(logging.DEBUG):
         log.debug(
@@ -479,14 +481,14 @@ def scan_archive(f, path):
     status = Status(0)
     if not isLog4j2:
         if isLog4j1_x:
-            if hasSocketServer and not (hasFilteredObjectInputStream or 
-                    hasHardenedObjectInputStream):
+            if hasSocketServer and not (hasFilteredObjectInputStream or
+                                        hasHardenedObjectInputStream):
                 status |= Status.CVE_2019_17571
             if hasVulnerableJMSSink:
                 status |= Status.CVE_2022_23302
             if hasChainsaw and hasVulnerableJMSSink:
-                    # not hasHardenedLoggingEventInputStream and
-                    # not hasJDBCAppender):
+                # not hasHardenedLoggingEventInputStream and
+                # not hasJDBCAppender):
                 status |= Status.CVE_2022_23307
             if hasJDBCAppender and not hasJDBCPatternParser:
                 status |= Status.CVE_2022_23305
@@ -513,7 +515,7 @@ def scan_archive(f, path):
         prefix = f"contains {product}-"
     prefix += version
     buf = ""
-    
+
     # CVE_2017_5645 = V2_8_1 | V2_0_BETA9 | V2_0_BETA8 | V2_3_1 | V2_3_2
     # CVE_2021_44228 = V2_10_0 | V2_0_BETA9
     # CVE_2021_45046 = CVE_2021_44228 | V2_15_0
@@ -551,14 +553,14 @@ def scan_archive(f, path):
                 buf = " == 2.15.0"
                 # status = Status.V2_15_0  # CVE_2021_45046
                 status |= (Status.CVE_2021_45046 | Status.CVE_2021_45105 |
-                        Status.CVE_2021_44832)
+                           Status.CVE_2021_44832)
             if hasJdbcJndiDisabled:
                 status &= ~Status.CVE_2021_44832
         else:
             buf = " >= 2.10.0"
             # status = Status.V2_10_0  # CVE_2021_44228
             status |= (Status.CVE_2021_44228 | Status.CVE_2021_45046 |
-                    Status.CVE_2021_45105 | Status.CVE_2021_44832)
+                       Status.CVE_2021_45105 | Status.CVE_2021_44832)
     elif isLog4j2_3_1:
         if hasJdbcJndiDisabled:
             buf = " >= 2.3.2"
@@ -581,13 +583,13 @@ def scan_archive(f, path):
         buf = " >= 2.0-beta9 (< 2.10.0)"
         # status = Status.V2_0_BETA9  # CVE_2021_44228
         status |= (Status.CVE_2021_44228 | Status.CVE_2021_45046 |
-                Status.CVE_2021_45105 | Status.CVE_2021_44832)
+                   Status.CVE_2021_45105 | Status.CVE_2021_44832)
 
     if hasCVE_2017_5645:
         status |= Status.CVE_2017_5645
 
     buf = prefix + buf
-    
+
     if not hasJndiLookup:
         status |= Status.NOJNDILOOKUP
 
@@ -686,7 +688,8 @@ def get_version_from_path(parent):
             with open(manifest_path, "r") as inf:
                 lines = inf.readlines()
                 log.debug("MANIFEST.MF found at %s", manifest_path)
-                product, version = get_version_from_manifest(lines) or (product, version)
+                product, version = get_version_from_manifest(
+                    lines) or (product, version)
     return product, version
 
 
@@ -707,9 +710,9 @@ def check_class(class_file):
                 if f.read().find(IN_JMSSINK) >= 0:
                     hasVulnerableJMSSink = True
                     status |= Status.CVE_2022_23302
-        if (check_path_exists(parent, SOCKETSERVER) and not 
+        if (check_path_exists(parent, SOCKETSERVER) and not
                 (check_path_exists(parent, FILOBJINPSTREAM)
-                or check_path_exists(parent, HARDENEDOIS))):
+                 or check_path_exists(parent, HARDENEDOIS))):
             status |= Status.CVE_2019_17571
         if (check_path_exists(parent, CHAINSAW) and
                 hasVulnerableJMSSink):
@@ -745,7 +748,7 @@ def check_class(class_file):
                      f"{msg} {fn} not found",
                      version, product, container=Container.FOLDER)
             return
-    
+
     fn = check_path_exists(log4j_dir, ABSSOCKETSRV)
     if fn:
         with open(fn, "rb") as f:
@@ -786,8 +789,8 @@ def check_class(class_file):
 
         # status |= Status.V2_0_BETA9  # CVE_2021_44228
         status |= (Status.CVE_2021_44228 |
-                Status.CVE_2021_45046 | Status.CVE_2021_45105 |
-                Status.CVE_2021_44832)
+                   Status.CVE_2021_45046 | Status.CVE_2021_45105 |
+                   Status.CVE_2021_44832)
         if args.fix:
             fix_msg = fix_jndilookup_class(jndilookup_path)
             if fix_msg:
@@ -867,7 +870,7 @@ def check_class(class_file):
                     return
                 elif fcontent.find(IN_2_15_0) >= 0:
                     status |= (Status.CVE_2021_45046 | Status.CVE_2021_45105 |
-                            Status.CVE_2021_44832)
+                               Status.CVE_2021_44832)
                     if args.fix:
                         fix_msg = fix_jndilookup_class(jndilookup_path)
                         if fix_msg:
@@ -878,7 +881,7 @@ def check_class(class_file):
                     return
 
     status |= (Status.CVE_2021_44228 | Status.CVE_2021_45046 |
-            Status.CVE_2021_45105 | Status.CVE_2021_44832)
+               Status.CVE_2021_45105 | Status.CVE_2021_44832)
     if args.fix:
         fix_msg = fix_jndilookup_class(jndilookup_path)
         if fix_msg:
@@ -1057,11 +1060,11 @@ def print_stats():
     #    if "pom_version" in hi:
     #        cnt["Version " + hi["pom_version"]] += 1
     for hi in log_item.found_items:
-       if "product" in hi:
-           cnt["library " + hi["product"]] += 1
+        if "product" in hi:
+            cnt["library " + hi["product"]] += 1
     log.info("")
     log.info(
-            " Scanned %d files in %d folders in %.1f seconds, found:",
+        " Scanned %d files in %d folders in %.1f seconds, found:",
         process_file.files_checked,
         analyze_directory.dirs_checked,
         time.time()-report_progress.start_time)
@@ -1074,7 +1077,7 @@ def print_stats():
         s = "s" if v > 1 else ""
         if "CVE" in k:
             log.info("   %d instance%s vulnerable to %s",
-                 v, s, k)
+                     v, s, k)
             hits = True
         elif "NOJNDILOOKUP" == k:
             log.info(
@@ -1086,7 +1089,7 @@ def print_stats():
                 v, s, k)
         else:
             log.info("   %d instance%s with status: %s",
-                 v, s, k)
+                     v, s, k)
 
     log.info("")
     if hits:
@@ -1236,6 +1239,7 @@ def main():
             progress = 10
 
     blacklist = [p for p in args.exclude_dirs if os.path.exists(p)]
+    scanned_paths = []
 
     for f in args.folders:
         if any(os.path.exists(f) and os.path.samefile(f, p) for p in blacklist):
@@ -1248,8 +1252,10 @@ def main():
             log.info("[I] Going to scan all detected local drives: " +
                      ", ".join(drives))
             for drive in drives:
+                scanned_paths.append(drive)
                 analyze_directory(drive, blacklist)
         else:
+            scanned_paths.append(drive)
             analyze_directory(f, blacklist)
 
     log.info("")
@@ -1263,15 +1269,15 @@ def main():
         output_json(fn, host_info)
 
     if not log_item.found_items and args.csv_clean:
-        log_item.found_items.append({
-            "container": "",
-            "path": "",
-            "status": ["CLEAN"],
-            "message": "No log4j instances found",
-            "pom_version": "",
-            "product": "",
-        })
-
+        for path in scanned_paths:
+            log_item.found_items.append({
+                "container": "",
+                "path": path,
+                "status": ["CLEAN"],
+                "message": "No log4j instances found",
+                "pom_version": "",
+                "product": "",
+            })
 
     if "csv_out" in args:
         if args.csv_out:
@@ -1279,7 +1285,6 @@ def main():
         else:
             fn = f"{hostname}_{ip}.csv"
         output_csv(fn, host_info)
-
 
 
 main()
