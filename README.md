@@ -31,12 +31,12 @@ Java archive extensions searched: `.zip`, `.jar`, `.war`, `.ear`, `.aar`, `.jpi`
 | YES     | CVE-2017-5645  | 9.8    | Critical | 7     | 2.0-alpha1 | 2.8.1                          | 2.8.2               | log4jv2 |
 | YES     | CVE-2019-17571 | 9.8    | Critical |       | 1.2.0      | 1.2.17                         | nofix               | log4jv1 |
 | YES     | CVE-2021-45046 | 9.0    | Critical | 7/8   | 2.0-beta9  | 2.15.0 excluding 2.12.2        | 2.12.2/2.16.0       | log4jv2 |
-| YES     | CVE-2022-23305 | 8.1    | High     |       | 1.2.0      | 1.2.17                         | nofix / 1.2.18.1    | log4jv1, reload4j |
-| YES     | CVE-2022-23307 | 8.1    | High     |       | 1.2.0      | 1.2.17                         | nofix / 1.2.18.1    | log4jv1, reload4j |
+| YES     | CVE-2022-23305 | 9.8    | Critical |       | 1.2.0      | 1.2.17                         | nofix / 1.2.18.1    | log4jv1, reload4j |
+| YES     | CVE-2022-23307 | 9.8    | Critical |       | 1.2.0      | 1.2.17                         | nofix / 1.2.18.1    | log4jv1, reload4j |
+| YES     | CVE-2022-23302 | 8.8    | High     |       | 1.0        | 1.2.17                         | nofix / 1.2.18.1    | log4jv1, reload4j |
 | YES     | CVE-2021-4104  | 7.5    | High     | -     | 1.0        | 1.2.17                         | nofix               | log4jv1 |
 | YES     | CVE-2021-44832 | 6.6    | Medium   | 6/7/8 | 2.0-alpha7 | 2.17.0, excluding 2.3.2/2.12.4 | 2.3.2/2.12.4/2.17.1 | log4jv2 |
 | -       | CVE-2021-42550 | 6.6    | Medium   | -     | 1.0        | 1.2.7                          | 1.2.8               | logback |
-| YES     | CVE-2022-23302 | 6.6    | Medium   |       | 1.0        | 1.2.17                         | nofix / 1.2.18.1    | log4jv1, reload4j |
 | YES     | CVE-2021-45105 | 5.9    | Medium   | 6/7/8 | 2.0-beta9  | 2.16.0, excluding 2.12.3       | 2.3.1/2.12.3/2.17.0 | log4jv2 |
 | -       | CVE-2020-9488  | 3.7    | Low      | 7/8   | 2.0-alpha1 | 2.13.1                         | 2.12.3/2.13.2       | log4jv2 |
 
@@ -99,6 +99,17 @@ File system inputs: 215416
 
 ## Changelog
 
+### Version 1.22-20220222
+
+- Added: Reading library version and name (log4j, log4j-core, reload4j) from MANIFEST.MF as well as from pom.properties
+- Performance improvements by additional 15%
+- Added: Autodetecting all local drives in mswin with `all` parameter
+- Added: `--no-csv-header` to omit csv header to allow easier merging of results from multiple hosts
+- Added: Detecting CVE-2017-5645 (9.8), CVE-2019-17571 (9.8), CVE-2022-23307 (8.1), CVE-2022-23305 (9.8), CVE-2022-23305 (9.8), CVE-2022-23302 (8.1), improved detection of CVE-2017-5645
+- Added: `--threads` parameter to manually tune number of scanning threads
+- Added: `--cvs-clean` parameter in order to write "CLEAN" line to csv output in case no log4j library detected
+- Added: `--cvs-stats` parameter in order to write "STATS" line to csv output with runtime in seconds and number of files and folders scanned
+
 ### Version 1.21-20220109
 
 - Fixed bug: `--fix` command in version 1.19 and 1.20 could corrupt `.jar` archives. 
@@ -132,6 +143,8 @@ optional arguments:
                         Save results to json file.
   -c [FILE], --csv-out [FILE]
                         Save results to csv file.
+  --csv-clean           Add CLEAN status line in case no entries found
+  --csv-stats           Add STATS line into csv output.
   --no-csv-header       Don't write CSV header to the output file.
   -f, --fix             Fix vulnerable by renaming JndiLookup.class into JndiLookup.vulne.
   --threads [THREADS]   Specify number of threads to use for parallel processing, default is 6.
