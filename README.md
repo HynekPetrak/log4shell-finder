@@ -12,7 +12,7 @@ Identifies log4j (1.x), reload4j (1.2.18+) and log4j-core (2.x) versions on your
 [CVE-2021-44228](https://mergebase.com/vulnerability/CVE-2021-44228/), 
 [CVE-2021-45046](https://mergebase.com/vulnerability/CVE-2021-45046/) and many others - see [table below](#detected-vulnerabilities). 
 It is able to find instances embedded in larger applications 
-several layers deep. Works on Linux, Windows, Mac or anywhere else Python 3.6+ runs.
+several layers deep. Works on Linux, Windows, Mac or anywhere else Python 3.8+ runs.
 
 Can correctly detect log4j inside executable spring-boot jars/wars, dependencies blended
 into [uber jars](https://mergebase.com/blog/software-composition-analysis-sca-vs-java-uber-jars/), shaded jars, and even
@@ -54,7 +54,7 @@ instant fast.
 
 > Binaries are available for Linux 64bit, MS Windows 64bit and 32bit - see Releases
 > 
-> Minimum supported Python version is 3.6 
+> Minimum supported Python version is 3.8. According to my testing Python 3.6 zip implementation cannot open many `.jar` files from my test data. 
 
 ## Performance
 
@@ -189,6 +189,9 @@ python3 .\test_log4shell.py c:\ d:\ --same-fs --no-errors
 ```
 
 On MS Windows:
+
+Make sure you've installed `pywin32`, e.g. via `pip install pywin32`
+
 ```bash
 PS C:\D\log4shell_finder> python3 .\test_log4shell.py c:\ --same-fs --no-errors
 
