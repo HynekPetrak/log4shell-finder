@@ -16,16 +16,6 @@ from enum import Flag, Enum, auto
 from shlex import shlex
 from collections import Counter
 from datetime import timedelta
-try:
-    import win32file
-    import win32api
-
-    drives = win32api.GetLogicalDriveStrings()
-    drives = drives.split('\000')[:-1]
-    drives = [d for d in drives if win32file.GetDriveType(
-        d) == win32file.DRIVE_FIXED]
-except:
-    drives = None
 
 VERSION = "1.22-20220222"
 
@@ -1196,7 +1186,8 @@ def main():
     parser.add_argument('folders', nargs='+',
                         help='List of folders or files to scan.\n'
                         'Use "-" to read list of files from stdin.\n'
-                        'On MS Windows use "all" to scan all local drives.')
+                        'On MS Windows use "all" to scan all local drives.\n'
+                        '\t "all" requires pywin32 installed')
 
     args = parser.parse_args()
 
@@ -1258,11 +1249,29 @@ def main():
         if f == "-":
             for line in sys.stdin:
                 analyze_directory(line.rstrip("\r\n"), blacklist)
-        elif f == "all" and drives:
-            log.info("[I] Going to scan all detected local drives: " +
-                     ", ".join(drives))
-            for drive in drives:
-                analyze_directory(drive, blacklist)
+        elif f == "all":
+            if os.name == 'nt':
+                try:
+                    import win32file
+                    import win32api
+
+                    drives = win32api.GetLogicalDriveStrings()
+                    drives = drives.split('\000')[:-1]
+                    drives = [d for d in drives if win32file.GetDriveType(
+                        d) == win32file.DRIVE_FIXED]
+                except Exception as ex:
+                    drives = None
+                    log.info(f"[E] pywin32 exception: {ex}")
+            else:
+                log.info("[E] 'all' is available only on MS Windows")
+
+            if drives:
+                log.info("[I] Going to scan all detected local drives: " +
+                         ", ".join(drives))
+                for drive in drives:
+                    analyze_directory(drive, blacklist)
+            else:
+                log.info("[I] No local drives detected")
         else:
             analyze_directory(f, blacklist)
 
