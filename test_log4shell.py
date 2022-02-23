@@ -1250,7 +1250,9 @@ def main():
             for line in sys.stdin:
                 analyze_directory(line.rstrip("\r\n"), blacklist)
         elif f == "all":
-            if os.name == 'nt':
+            if os.name != 'nt':
+                log.info("[E] 'all' is available only on MS Windows")
+            else:
                 try:
                     import win32file
                     import win32api
@@ -1259,19 +1261,16 @@ def main():
                     drives = drives.split('\000')[:-1]
                     drives = [d for d in drives if win32file.GetDriveType(
                         d) == win32file.DRIVE_FIXED]
+                    if drives:
+                        log.info("[I] Going to scan all detected local drives: " +
+                                 ", ".join(drives))
+                        for drive in drives:
+                            analyze_directory(drive, blacklist)
+                    else:
+                        log.info("[I] No local drives detected")
                 except Exception as ex:
                     drives = None
                     log.info(f"[E] pywin32 exception: {ex}")
-            else:
-                log.info("[E] 'all' is available only on MS Windows")
-
-            if drives:
-                log.info("[I] Going to scan all detected local drives: " +
-                         ", ".join(drives))
-                for drive in drives:
-                    analyze_directory(drive, blacklist)
-            else:
-                log.info("[I] No local drives detected")
         else:
             analyze_directory(f, blacklist)
 
@@ -1297,11 +1296,10 @@ def main():
             "container": "",
             "path": host_info['cmdline'],
             "status": epilog_status,
-            "message": time.time()-report_progress.start_time, # runtime
-            "pom_version": analyze_directory.dirs_checked, # folders
-            "product": process_file.files_checked, # files
+            "message": time.time()-report_progress.start_time,  # runtime
+            "pom_version": analyze_directory.dirs_checked,  # folders
+            "product": process_file.files_checked,  # files
         })
-
 
     if "csv_out" in args:
         if args.csv_out:
